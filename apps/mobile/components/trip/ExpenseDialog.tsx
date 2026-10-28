@@ -15,12 +15,12 @@ import { amountError, formatCents, parseAmount } from "@/lib/money";
 import {
   SCOPE_LABEL,
   emptyScopeSentence,
-  splitForScope,
-  splitPreview,
+  previewShares,
+  type Payment,
   type SplitScope,
 } from "@/lib/payments";
 import { joinFacts } from "@/lib/wording";
-import { withPayerFallback } from "@journiful/shared/utils";
+import { scopeMemberIds, withPayerFallback } from "@journiful/shared/utils";
 
 /**
  * The expense form, in one place because there is one of it: adding,
@@ -50,14 +50,16 @@ import { withPayerFallback } from "@journiful/shared/utils";
  * the save will refuse, and an edit draws the payer's row, which is the
  * split the server will store and read back.
  *
- * **The split is previewed with the server's own arithmetic.** A rule
- * resolves through `splitForScope` — `scopeMemberIds` and then
- * `equalShares`, the two functions the API records with — and a fixed list
- * goes through `splitPreview`, which is that same `equalShares`. The API
- * gives the remainder cent to the first participant in the array it is
- * sent, and the form sends exactly the array it previewed, in the same
- * order: a rule's people in member-id order, a fixed list in the roster's
- * order. So the shares on screen are the shares the server will record.
+ * **The split is previewed with the server's own arithmetic, over the whole
+ * trip.** A share is not a division of one expense: cents do not divide, and
+ * rounding each cost on its own hands its leftover to the same people every
+ * time (`shared/utils/split.ts:spreadShares`). So the preview runs the server's
+ * spread — the same shared function `payment-split.ts` runs — over the trip's
+ * existing payments plus this draft, which is why the dialog is handed the
+ * list. A rule's people come from `scopeMemberIds`, a fixed list from the
+ * boxes, and the draft's place in the order comes from its day
+ * (`paymentInstant`). The shares on screen are the shares the server will
+ * store, to the cent.
  *
  * **This form is the only surface in the app that writes money**, and it
  * is also the first dialog whose fields want a numeric keypad. The
@@ -219,10 +221,12 @@ export function ExpenseDialog({
   title,
   primaryTitle,
   members,
+  payments,
   viewerMemberId,
   isOrganizer = false,
   dismissHref,
   initial,
+  editedRow = null,
   lockedParticipantId = null,
   onAddGuest,
   serverError,
@@ -235,6 +239,21 @@ export function ExpenseDialog({
   primaryTitle: string;
   /** The roster. Every row belongs in both pickers — guests included. */
   members: Member[];
+  /**
+   * The trip's existing expenses, or `null` while that read is in flight.
+   *
+   * The split is spread over the trip, not over this expense (`previewShares`),
+   * so the preview cannot be the server's answer without them. `null` is
+   * therefore "the shares are not known yet", and the rows draw blank rather
+   * than a number that is about to change by a cent.
+   */
+  payments: Payment[] | null;
+  /**
+   * The row being edited. It replaces itself in the trip's history for the
+   * preview instead of being added to it, which is what keeps an edit's shares
+   * the same as the row it is editing.
+   */
+  editedRow?: { id: string; createdAt: string } | null;
   /**
    * The reader's own **member** id (`viewerOf(members, user?.id)?.id`),
    * which is what a default is drawn from: the payer starts as the person
@@ -320,8 +339,7 @@ export function ExpenseDialog({
   // same question.
   const [customIds, setCustomIds] = useState<string[] | null>(() =>
     initialScope === "custom"
-      ? (initial?.participantIds ??
-        splitForScope(initialScope, members, 0).map((share) => share.memberId))
+      ? (initial?.participantIds ?? scopeMemberIds(initialScope, members))
       : null,
   );
   const [day, setDay] = useState(initial?.day ?? "");
@@ -329,10 +347,10 @@ export function ExpenseDialog({
 
   const cents = parseAmount(amount);
   const scoped = scope !== "custom";
-  // The rule's people, in member-id order, priced at whatever has been typed
-  // so far. The amount only decides the shares — the resolver divides after
-  // it has resolved the roster — so `0` is a stand-in until something is.
-  const resolved = scoped ? splitForScope(scope, members, cents ?? 0) : [];
+  // The rule's people, in member-id order. What they owe is not decided here:
+  // a share is the trip's spread (`previewShares` below), so this list is the
+  // roster's answer to "who", and the amount is only an input to "how much".
+  const resolvedIds = scoped ? scopeMemberIds(scope, members) : [];
   // The payer floor (`withPayerFallback`, D5), on an edit only. Every read of
   // a scoped row is floored to the payer and an update is accepted and read
   // back the same way, while a create is refused (`EmptySplitError`). So an
@@ -342,11 +360,8 @@ export function ExpenseDialog({
   // stand on, and that field is already asking its own question.
   const scopedIds =
     editing && payerMemberId !== null
-      ? withPayerFallback(
-          resolved.map((share) => share.memberId),
-          payerMemberId,
-        )
-      : resolved.map((share) => share.memberId);
+      ? withPayerFallback(resolvedIds, payerMemberId)
+      : resolvedIds;
   // The people the row will carry, in the order it carries them: a rule's
   // resolved list in member-id order, a fixed list in the roster's order,
   // filtered to what is ticked. Derived rather than stored, so no press can
@@ -356,16 +371,31 @@ export function ExpenseDialog({
     : members
         .filter((member) => (customIds ?? []).includes(member.id))
         .map((member) => member.id);
-  // What each of them owes, in the order above: one division for both modes,
-  // because a rule's shares are `equalShares` over the list it resolved and a
-  // fixed list's are the same division over the ticked rows. Empty until
-  // there is an amount to divide: a "$0.00" beside a name before anything has
-  // been typed reads as a share that is nothing rather than as a split that is
-  // not decided yet, and the amount field is already saying "Enter an
-  // amount."
-  const shares = cents === null ? [] : splitPreview(cents, participantIds);
-  const shareOf = new Map<string, number>(
-    participantIds.map((memberId, index) => [memberId, shares[index] ?? 0]),
+  // What each of them owes, in the order above. One rule for both modes: a
+  // rule's people and a fixed list are the same list to `previewShares`, which
+  // spreads the cost over the trip's history the way the API will. Empty until
+  // there is an amount *and* a history to divide: a "$0.00" beside a name
+  // before anything has been typed reads as a share that is nothing rather
+  // than as a split that is not decided yet, and the amount field is already
+  // saying "Enter an amount."
+  const shares =
+    cents === null || payments === null
+      ? []
+      : previewShares(payments, {
+          amount: cents,
+          participantIds,
+          id: editedRow?.id ?? null,
+          createdAt: editedRow?.createdAt ?? null,
+        }).map((share) => share.shareAmount);
+  // `null` is "no number yet", and it is a different thing from zero: the
+  // shares are unknown until there is an amount, a day, and the trip's
+  // history in hand (`previewShares`), and a "$0.00" beside a name reads as a
+  // share that happens to be nothing.
+  const shareOf = new Map<string, number | null>(
+    participantIds.map((memberId, index) => [
+      memberId,
+      shares.length === participantIds.length ? (shares[index] ?? 0) : null,
+    ]),
   );
 
   const input: ExpenseInput = {
@@ -406,11 +436,7 @@ export function ExpenseDialog({
     // the first time: a list the reader has edited is theirs, so leaving the
     // mode and coming back must not re-tick what they unticked.
     if (chosen === "custom") {
-      setCustomIds(
-        (ids) =>
-          ids ??
-          splitForScope(scope, members, 0).map((share) => share.memberId),
-      );
+      setCustomIds((ids) => ids ?? scopeMemberIds(scope, members));
     }
     setScope(chosen);
   }
@@ -573,9 +599,9 @@ export function ExpenseDialog({
                   a number the reader is not paying. */}
               <View className="flex-row items-center justify-between gap-4">
                 <CheckboxLabel>{memberLabel(member)}</CheckboxLabel>
-                {shareOf.has(member.id) ? (
+                {shareOf.get(member.id) != null ? (
                   <Text className="shrink-0 font-body text-sm text-ink opacity-60">
-                    {formatCents(shareOf.get(member.id) ?? 0)}
+                    {formatCents(shareOf.get(member.id)!)}
                   </Text>
                 ) : null}
               </View>

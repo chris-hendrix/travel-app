@@ -15,15 +15,13 @@
 //   somebody else's record too, and there is no honest reassignment we can
 //   guess at — the 409 names the reason and the organizer decides.
 // - **A participant is not.** They leave the group cost, their row goes, and
-//   the rest of the split is recomputed among the people still on the trip.
-//   Refusing here would have made every member unremovable once a group
-//   expense existed.
+//   the people still on the trip share it instead. Refusing here would have
+//   made every member unremovable once a group expense existed.
 //
 // Both run inside the caller's transaction (`tx`), never on `db`: the member
 // row, the participant rows and the re-split shares have to land together, and
 // the payer guard has to read the same snapshot the delete is about to act on.
 import { eq } from "drizzle-orm";
-import { equalShares } from "@journiful/shared/utils";
 import { payments, paymentParticipants } from "@/db/schema/index.js";
 import type { AppDatabase } from "@/types/index.js";
 import { MemberHasPaymentsError } from "../errors.js";
@@ -76,17 +74,13 @@ export async function assertNoPaidExpenses(
 
 /**
  * Take the member out of every split they are only a participant of: their
- * rows go, and each affected payment is re-split among the rows that remain.
+ * rows go, and a payment left with nobody falls back to the payer.
  *
- * The re-split is the same arithmetic the write path uses (`equalShares`,
- * via `shared/utils/split.ts`), in the order the rows were created
- * (`createdAt, id`), so the member who has been in the split longest keeps the
- * odd cent — the same rule as a fresh create, applied to a shrunken list.
- *
- * A payment whose only participant was the departing member falls back to
- * **the payer alone, owing the whole amount** (D5). Deleting the payment would
- * hide money others spent; leaving the split empty would credit the payer
- * against nobody and drop the row from the simplified ledger.
+ * There is no share arithmetic here any more, and its absence is the fix:
+ * shares are the trip-wide spread (`shared/utils/split.ts:spreadShares`,
+ * applied by `payment-split.ts` on every read), so a cost's leftover cents
+ * already follow the trip and a shrunken split needs no rewrite. Deleting the
+ * row is the whole edit.
  *
  * Scoped payments (`split_scope <> 'custom'`) hold no rows, so they are
  * untouched here — the roster is the split, and the next read of the scope
@@ -109,12 +103,21 @@ export async function cascadeMemberRemoval(
     .where(eq(paymentParticipants.memberId, memberId));
 
   for (const paymentId of affectedPaymentIds) {
-    await resplitPayment(tx, paymentId);
+    await handEmptySplitToPayer(tx, paymentId);
   }
 }
 
-/** Re-share one payment's remaining rows, or hand it to the payer. */
-async function resplitPayment(
+/**
+ * Hand a payment that just lost its last participant to the payer.
+ *
+ * A payment whose only participant was the departing member reads as **the
+ * payer alone, owing the whole amount** (D5). Deleting the payment would hide
+ * money others spent; leaving the split empty would credit the payer against
+ * nobody and drop the row from the simplified ledger. `withPayerFallback`
+ * covers the same case on the read path, so this is the stored half of one
+ * rule rather than a second rule.
+ */
+async function handEmptySplitToPayer(
   tx: RemovalExecutor,
   paymentId: string,
 ): Promise<void> {
@@ -125,34 +128,19 @@ async function resplitPayment(
     .limit(1);
 
   // The payment row is gone (cascade delete raced the removal) — nothing to
-  // re-split, and nothing to resurrect.
+  // hand over, and nothing to resurrect.
   if (!payment) return;
 
-  const remaining = await tx
-    .select({
-      id: paymentParticipants.id,
-      shareAmount: paymentParticipants.shareAmount,
-    })
+  const [remaining] = await tx
+    .select({ id: paymentParticipants.id })
     .from(paymentParticipants)
     .where(eq(paymentParticipants.paymentId, paymentId))
-    .orderBy(paymentParticipants.createdAt, paymentParticipants.id);
+    .limit(1);
 
-  if (remaining.length === 0) {
-    await tx.insert(paymentParticipants).values({
-      paymentId,
-      memberId: payment.memberId,
-      shareAmount: payment.amount,
-    });
-    return;
-  }
+  if (remaining) return;
 
-  const shares = equalShares(payment.amount, remaining.length);
-  for (const [index, row] of remaining.entries()) {
-    const shareAmount = shares[index]!;
-    if (row.shareAmount === shareAmount) continue;
-    await tx
-      .update(paymentParticipants)
-      .set({ shareAmount })
-      .where(eq(paymentParticipants.id, row.id));
-  }
+  await tx.insert(paymentParticipants).values({
+    paymentId,
+    memberId: payment.memberId,
+  });
 }

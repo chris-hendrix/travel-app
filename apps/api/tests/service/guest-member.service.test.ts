@@ -506,12 +506,10 @@ describe("guest-member.service update/delete (Task 3.2)", () => {
       {
         paymentId: payment!.id,
         memberId: guest.id,
-        shareAmount: 5000,
       },
       {
         paymentId: payment!.id,
         memberId: other.id,
-        shareAmount: 5000,
       },
     ]);
 
@@ -542,7 +540,6 @@ describe("guest-member.service update/delete (Task 3.2)", () => {
     expect(participantsAfter).toHaveLength(1);
     expect(participantsAfter[0]).toMatchObject({
       memberId: other.id,
-      shareAmount: 10000,
     });
     // Cleanup payment row (createdBy FK is user-keyed; delete explicitly)
     await db.delete(payments).where(eq(payments.id, payment!.id));
@@ -568,7 +565,6 @@ describe("guest-member.service update/delete (Task 3.2)", () => {
     await db.insert(paymentParticipants).values({
       paymentId: payment!.id,
       memberId: guest.id,
-      shareAmount: 10000,
     });
 
     await guestMemberService.deleteGuest(tripId, organizerId, guest.id);
@@ -580,7 +576,6 @@ describe("guest-member.service update/delete (Task 3.2)", () => {
     expect(participantsAfter).toHaveLength(1);
     expect(participantsAfter[0]).toMatchObject({
       memberId: organizerMemberId,
-      shareAmount: 10000,
     });
 
     await db.delete(payments).where(eq(payments.id, payment!.id));
@@ -804,7 +799,6 @@ describe("guest-member.service claimGuestMember (Task 4.1)", () => {
     await db.insert(paymentParticipants).values({
       paymentId: payment!.id,
       memberId: guest.id,
-      shareAmount: 5000,
     });
 
     const result = await db.transaction(async (tx) =>

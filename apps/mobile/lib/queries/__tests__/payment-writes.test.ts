@@ -395,9 +395,15 @@ describe("useCreatePayment", () => {
       "member-1",
     ]);
     expect(painted.participants.map((p) => p.name)).toEqual(["Priya", "Ava"]);
-    // The remainder rides the paint list's order, as it does on the wire.
-    expect(painted.participants.map((p) => p.shareAmount)).toEqual([
-      5001, 5000,
+    // The people stay in the paint list's order; the leftover cent does not
+    // follow it any more. A share is the trip's spread (`spreadShares`), and
+    // on a trip with no other cost it goes to the member the rule picks — so
+    // this is 5001 to `member-1`, listed second.
+    expect(
+      painted.participants.map((p) => [p.memberId, p.shareAmount]),
+    ).toEqual([
+      ["member-2", 5000],
+      ["member-1", 5001],
     ]);
 
     // And the body the server sees carries the rule alone.

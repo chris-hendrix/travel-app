@@ -465,7 +465,6 @@ describe("Payment Routes", () => {
       await db.insert(paymentParticipants).values({
         paymentId: payment!.id,
         memberId: plainMember.id,
-        shareAmount: 2000,
       });
 
       const response = await app.inject({

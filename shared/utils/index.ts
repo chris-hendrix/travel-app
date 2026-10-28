@@ -35,9 +35,18 @@ export {
   SPLIT_SCOPES,
   scopeMemberIds,
   equalShares,
+  spreadShares,
+  ledgerOrder,
   withPayerFallback,
 } from "./split";
-export type { SplitScope, SplitMember, MemberRsvpStatus } from "./split";
+export type {
+  SplitScope,
+  SplitMember,
+  MemberRsvpStatus,
+  LedgerStep,
+  LedgerStepShares,
+  LedgerOrderable,
+} from "./split";
 
 /**
  * Converts a date/time from a specific timezone to UTC

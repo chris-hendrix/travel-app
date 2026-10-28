@@ -19,7 +19,12 @@
 import { atClock, DEMO_VIEWER_MEMBER_ID, userIdOf } from "@/lib/demo/fixture";
 import { findRowAnywhere, notFound, nowIso } from "@/lib/demo/store";
 import type { DemoBody, DemoStore } from "@/lib/demo/store";
-import { splitForScope, splitPreview } from "@/lib/payments";
+import {
+  ledgerOrder,
+  scopeMemberIds,
+  spreadShares,
+  withPayerFallback,
+} from "@journiful/shared/utils";
 import type { SplitScope } from "@/lib/payments";
 import type {
   BalanceEntry,
@@ -36,12 +41,12 @@ import type {
 /**
  * One expense in a trip's ledger, in the fixture's own shorthand.
  *
- * The shares are deliberately **not** written down here: they are the
- * server's own rule (`PaymentService.computeEqualShares`, mirrored by
- * `splitPreview`), and `paymentRow` below applies it when it builds the
- * row. So a fixture row cannot state shares that disagree with its own
- * amount, and every balance the demo serves is arithmetic over these rows
- * rather than a number written beside them.
+ * The shares are deliberately **not** written down here: a share is the
+ * trip's spread (`shared/utils/split.ts:spreadShares`, the rule
+ * `payment-split.ts` runs on the server), and `rowsAsRead` below applies it
+ * over the whole trip when the ledger is read. So a fixture row cannot state
+ * shares that disagree with its own amount, and every balance the demo serves
+ * is arithmetic over these rows rather than a number written beside them.
  *
  * A trip's ledger is invisible unless it is split across more than one
  * person: the balance service credits the payer and debits each
@@ -62,10 +67,10 @@ export type DemoPayment = {
   /** Who paid: a **member** id. */
   payerMemberId: string;
   /**
-   * Everyone splitting it, in the order the remainder cents are handed
-   * out: **member** ids, and the order is load-bearing — the first
-   * `amount % count` people in this list get one cent more than the
-   * rest (`splitPreview`).
+   * Everyone splitting it, as **member** ids. Not a share list and not an
+   * order that decides one: the cents are spread over the trip on every read
+   * (`shared/utils/split.ts:spreadShares`), so this states who and nothing
+   * about how much.
    *
    * Empty on a scoped row, and that is not an omission: a rule's people
    * are the roster's, resolved on every read (`rowAsRead`), so a fixture
@@ -461,21 +466,17 @@ function participantRow(
  * One stored expense: the API's entity, with the names resolved off the
  * roster and the shares **computed**, never written down.
  *
- * The shares are the server's own rule, applied to the participant list
- * in the order the fixture wrote it: `splitPreview` (`lib/payments.ts`)
- * is the repo's existing restatement of
- * `PaymentService.computeEqualShares` — integer division, with the
- * remainder cents going one each to the first `remainder` participants.
- * Reusing it rather than restating it here is what keeps the demo's
- * arithmetic and the form's preview from ever disagreeing, and it is why
- * a fixture row can only state the payer, the people and the total.
+ * The shares are **not** written here: a share is the trip's spread, not the
+ * row's division (`shared/utils/split.ts:spreadShares`), so it is computed when
+ * the trip is read (`rowsAsRead`) exactly as `payment-split.ts` computes it on
+ * the server. A fixture row can therefore only state the payer, the people and
+ * the total, which is all the product stores either.
  */
 function paymentRow(
   tripId: string,
   plan: DemoPayment,
   nameOf: (memberId: string) => string,
 ): Payment {
-  const shares = splitPreview(plan.amount, plan.participants);
   return {
     id: plan.id,
     tripId,
@@ -495,13 +496,9 @@ function paymentRow(
     participants:
       plan.splitScope === "custom"
         ? plan.participants.map((memberId, index) =>
-            participantRow(
-              plan.id,
-              memberId,
-              shares[index] ?? 0,
-              nameOf,
-              index,
-            ),
+            // A placeholder amount: the read replaces it with the trip's
+            // spread (`rowsAsRead`), and nothing serves this row directly.
+            participantRow(plan.id, memberId, 0, nameOf, index),
           )
         : [],
     createdAt: nowIso() as unknown as Date,
@@ -509,42 +506,88 @@ function paymentRow(
   };
 }
 
+/** The instant a demo row carries — the fixtures write ISO strings. */
+function instantOf(value: unknown): string {
+  return typeof value === "string"
+    ? value
+    : (value as Date).toISOString();
+}
+
 /**
- * One stored row as a read serves it: a scoped row's people resolved
- * against the roster **now**, a custom row's exactly as it was written.
+ * The people on one stored row, as a read resolves them: a scope's are the
+ * roster **now**, a custom row's exactly as it was written.
  *
- * This is the one place the demo could disagree with the product on this
- * feature, and it used to. A rule is re-resolved on every read — the API
- * stores `split_scope` and no participant rows for it and resolves the
- * roster in `payment-split.ts` — so an RSVP that lands after the expense
- * joins or leaves the split with no edit to the row. Storing the people a
- * rule resolved to would freeze them, and the demo's roster **does**
- * move: its own adapter writes the viewer's answer on
- * `POST /trips/:id/rsvp`. A snapshot would show an `all_going` expense
- * keeping its original people after the reader said they could not go,
- * while the product re-resolves. Hence resolution here, at read time,
- * through the repo's own `splitForScope` — the rule the API and the form's
- * preview use, so the three surfaces cannot disagree.
- *
- * The stored row is not modified: this returns a copy, and the store keeps
- * the scope with no people, which is the column's own shape.
+ * This is where the demo would disagree with the product if it snapshotted a
+ * rule. A rule is re-resolved on every read — the API stores `split_scope`
+ * and no participant rows for it and resolves the roster in
+ * `payment-split.ts` — so an RSVP that lands after the expense joins or leaves
+ * the split with no edit to the row. Storing the people a rule resolved to
+ * would freeze them, and the demo's roster **does** move: its own adapter
+ * writes the viewer's answer on `POST /trips/:id/rsvp`.
  */
-function rowAsRead(store: DemoStore, row: Payment): Payment {
-  if (row.splitScope === "custom") return row;
+function peopleOf(store: DemoStore, row: Payment): string[] {
+  if (row.splitScope === "custom") {
+    return row.participants.map((participant) => participant.memberId);
+  }
   const roster = rosterOf(store, row.tripId);
-  return {
-    ...row,
-    participants: splitForScope(row.splitScope, roster, row.amount).map(
-      (share, index) =>
-        participantRow(
-          row.id,
-          share.memberId,
-          share.shareAmount,
-          (memberId) => nameOfMember(roster, memberId),
-          index,
-        ),
-    ),
-  };
+  return withPayerFallback(
+    scopeMemberIds(row.splitScope, roster),
+    row.payerMemberId,
+  );
+}
+
+/**
+ * Every stored row of one trip as a read serves it, with the **trip's**
+ * spread applied — one computation for the list, the ledger and the detail,
+ * because a share is a fact about the trip and not about the row.
+ *
+ * Mirrors `payment-split.ts:loadTripSplits`: chronological order
+ * (`ledgerOrder`), each row's people resolved against the roster as it stands,
+ * then one `spreadShares` over the lot. The stored rows are not modified —
+ * this returns copies, and the store keeps exactly what a fixture wrote.
+ */
+function rowsAsRead(store: DemoStore, tripId: string): Payment[] {
+  const stored = store.payments.get(tripId) ?? [];
+  if (stored.length === 0) return [];
+
+  const people = new Map(
+    stored.map((row) => [row.id, peopleOf(store, row)] as const),
+  );
+  const ordered = ledgerOrder(
+    stored.map((row) => ({
+      id: row.id,
+      amount: row.amount,
+      createdAt: instantOf(row.createdAt),
+      participantIds: people.get(row.id) ?? [],
+    })),
+  );
+  const spreads = spreadShares(ordered);
+
+  const sharesById = new Map<string, number[]>();
+  ordered.forEach((step, index) => {
+    sharesById.set(step.id, spreads[index]?.shares ?? []);
+  });
+
+  const roster = rosterOf(store, tripId);
+  const nameOf = (memberId: string) => nameOfMember(roster, memberId);
+
+  return stored.map((row) => {
+    const memberIds = people.get(row.id) ?? [];
+    const shares = sharesById.get(row.id) ?? [];
+    return {
+      ...row,
+      participants: memberIds.map((memberId, index) =>
+        participantRow(row.id, memberId, shares[index] ?? 0, nameOf, index),
+      ),
+    };
+  });
+}
+
+/** One row as a read serves it: the trip's read, narrowed to this row. */
+function rowAsRead(store: DemoStore, row: Payment): Payment {
+  return (
+    rowsAsRead(store, row.tripId).find((read) => read.id === row.id) ?? row
+  );
 }
 
 /**
@@ -562,11 +605,9 @@ function rowAsRead(store: DemoStore, row: Payment): Payment {
  */
 function netBalancesOf(store: DemoStore, tripId: string): Map<string, number> {
   const net = new Map<string, number>();
-  for (const stored of store.payments.get(tripId) ?? []) {
-    // The people are read, not stored: a scoped row's split is the roster's
-    // as it stands now (`rowAsRead`), so an RSVP moves every balance that
-    // row touches without an edit to it.
-    const payment = rowAsRead(store, stored);
+  // One trip read for the lot: the shares are the trip's spread, so they
+  // cannot be computed a row at a time (`rowsAsRead`).
+  for (const payment of rowsAsRead(store, tripId)) {
     net.set(
       payment.payerMemberId,
       (net.get(payment.payerMemberId) ?? 0) + payment.amount,
@@ -705,24 +746,22 @@ function memberIdsFrom(value: unknown): string[] {
 }
 
 /**
- * Replace a row's participants and recompute every share from the row's
- * own amount — the server's own update path: a participants list replaces
- * the rows, and the shares come from the final amount (`updatePayment`
- * recomputes for the new list, or for the existing one when only the
- * amount changed).
+ * Replace a row's participants — the server's own update path, which deletes
+ * the rows and writes the new list. There is no share to recompute: the shares
+ * are the trip's spread, computed on the way out (`rowsAsRead`), so changing
+ * the list changes them by being a different list.
  *
  * **Custom rows only.** A scoped row stores no people at all: the roster
- * resolves them when the row is read (`rowAsRead`), so there is nothing
- * here to write and nothing to go stale.
+ * resolves them when the row is read, so there is nothing here to write and
+ * nothing to go stale.
  */
 function setParticipants(
   row: Payment,
   memberIds: string[],
   nameOf: (memberId: string) => string,
 ): void {
-  const shares = splitPreview(row.amount, memberIds);
   row.participants = memberIds.map((memberId, index) =>
-    participantRow(row.id, memberId, shares[index] ?? 0, nameOf, index),
+    participantRow(row.id, memberId, 0, nameOf, index),
   );
 }
 
@@ -770,12 +809,11 @@ export function listPayments(
     body: {
       success: true,
       // Every stored row is served, because settle hard-deletes: a deleted
-      // expense is not hidden here, it is gone. And every row is resolved as
-      // it is served (`rowAsRead`): a scoped expense's people are the
-      // roster's now, which is what the detail sheet's split block reads.
-      payments: (store.payments.get(tripId) ?? []).map((payment) =>
-        rowAsRead(store, payment),
-      ),
+      // expense is not hidden here, it is gone. And the trip is resolved as it
+      // is served (`rowsAsRead`): a scoped expense's people are the roster's
+      // now, and the leftover cents are spread over the whole trip, which is
+      // what the detail sheet's split block and the ledger both read.
+      payments: rowsAsRead(store, tripId),
     },
   };
 }
@@ -827,8 +865,8 @@ export function myBalance(
  * no people at all — the roster resolves it on the way out of every read
  * (`rowAsRead`), exactly as the API's `split_scope` column works — so the
  * demo can never disagree with the product about who shares a cost. A
- * fixed list is the rows themselves, priced in the order the body sent
- * (that order hands the remainder cents out).
+ * fixed list is the rows themselves; what each person owes is the trip's
+ * spread, computed when the trip is read.
  */
 export function createPayment(
   store: DemoStore,

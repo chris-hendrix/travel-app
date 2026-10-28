@@ -5,16 +5,16 @@ import {
   findMove,
   moveFor,
   paymentDay,
+  paymentInstant,
   paymentsInOrder,
   positionFor,
-  splitForScope,
-  splitPreview,
+  previewShares,
   type BalanceMove,
   type Payment,
 } from "@/lib/payments";
 import { formatDay } from "@/lib/dateRange";
 import { zoneOffsetMinutes } from "@/lib/timezone";
-import { SPLIT_SCOPES, type SplitMember } from "@journiful/shared/utils";
+import { SPLIT_SCOPES } from "@journiful/shared/utils";
 
 function makePayment(overrides: Partial<Payment> = {}): Payment {
   return {
@@ -89,154 +89,156 @@ describe("paymentsInOrder", () => {
   });
 });
 
-describe("splitPreview", () => {
-  it("gives the remainder cents to the first ids in the array", () => {
-    expect(splitPreview(100, ["a", "b", "c"])).toEqual([34, 33, 33]);
+/** A stored row whose people are `memberIds`, in that order. */
+function shared(
+  overrides: Partial<Payment> & { id: string },
+  memberIds: string[],
+): Payment {
+  return makePayment({
+    ...overrides,
+    participants: memberIds.map((memberId) => ({
+      memberId,
+      name: memberId,
+      // Never read by the preview: a share is the trip's spread, not the
+      // number a stored row carries.
+      shareAmount: 0,
+    })),
   });
+}
 
-  it("gives the remainder one cent each, not all of it to the first", () => {
-    // The case that separates the server's rule from the plausible wrong
-    // one. $100.01 between three: the server records [34, 34, 33], and
-    // piling the whole remainder on the first participant would show
-    // [35, 33, 33]. Remainder 0 and 1 cannot tell the two apart, which is
-    // exactly why this case has to be pinned.
-    expect(splitPreview(10001, ["a", "b", "c"])).toEqual([3334, 3334, 3333]);
-    expect(splitPreview(10001, ["a", "b", "c"])).not.toEqual([
-      3335, 3333, 3333,
+const FOUR = ["m-1", "m-2", "m-3", "m-4"];
+const DAY = "2026-10-27T12:00:00.000Z";
+
+describe("previewShares", () => {
+  it("prices a first cost exactly as the server divides it", () => {
+    expect(
+      previewShares([], { amount: 100, participantIds: ["a", "b", "c"] }),
+    ).toEqual([
+      { memberId: "a", shareAmount: 34 },
+      { memberId: "b", shareAmount: 33 },
+      { memberId: "c", shareAmount: 33 },
     ]);
   });
 
   it("gives everything to a single participant", () => {
-    expect(splitPreview(100, ["a"])).toEqual([100]);
+    expect(
+      previewShares([], { amount: 100, participantIds: ["a"] }),
+    ).toEqual([{ memberId: "a", shareAmount: 100 }]);
   });
 
   it("answers nothing for an empty split", () => {
-    expect(splitPreview(100, [])).toEqual([]);
+    expect(
+      previewShares([], { amount: 100, participantIds: [] }),
+    ).toEqual([]);
   });
 
-  it("always sums back to the amount, whatever the split", () => {
-    for (const amount of [1, 2, 100, 10001, 99999]) {
-      for (const count of [1, 2, 3, 7]) {
-        const ids = Array.from({ length: count }, (_, i) => `m${i}`);
-        const shares = splitPreview(amount, ids);
-        expect(shares.reduce((a, b) => a + b, 0)).toBe(amount);
-      }
-    }
-  });
+  it("always sums back to the amount, whatever the draft and the trip", () => {
+    const trip = [
+      shared({ id: "p1", amount: 2800 }, FOUR),
+      shared({ id: "p2", amount: 7650 }, FOUR),
+      shared({ id: "p3", amount: 4011 }, FOUR),
+    ];
 
-  it("moves the remainder with the order, since the order is what is sent", () => {
-    expect(splitPreview(100, ["c", "b", "a"])).toEqual([34, 33, 33]);
-    expect(splitPreview(101, ["c", "b", "a"])).toEqual([34, 34, 33]);
-    expect(splitPreview(101, ["a", "b", "c"])).toEqual([34, 34, 33]);
-  });
-
-  it("matches the server's own formula for every amount and count", () => {
-    // The server's rule written out here independently of the module
-    // (`PaymentService.computeEqualShares`), so the preview and the thing
-    // it previews cannot drift apart. This is the assertion that would
-    // have caught the remainder bug.
-    const serverShares = (amount: number, count: number) => {
-      const base = Math.floor(amount / count);
-      const remainder = amount - base * count;
-      return Array.from({ length: count }, (_, i) =>
-        i < remainder ? base + 1 : base,
-      );
-    };
-
-    for (const amount of [1, 2, 7, 100, 101, 10001, 99999, 100_000]) {
-      for (const count of [1, 2, 3, 4, 6, 7]) {
-        const ids = Array.from({ length: count }, (_, i) => `m${i}`);
-        expect(splitPreview(amount, ids)).toEqual(serverShares(amount, count));
-      }
-    }
-  });
-});
-
-describe("splitForScope", () => {
-  // Deliberately not in id order, and with the four answers spread across
-  // it: the resolver owes the caller one stable order, the member id's,
-  // and the row order of the roster is not it.
-  const roster: SplitMember[] = [
-    { id: "m-3", status: "maybe", userId: "user-3" },
-    { id: "g-1", status: "not_going", userId: null },
-    { id: "m-1", status: "going", userId: "user-1" },
-    { id: "m-2", status: "no_response", userId: "user-2" },
-    { id: "g-2", status: "no_response", userId: null },
-  ];
-
-  it("splits an everyone-going cost between everyone who has not declined", () => {
-    // Only an explicit `not_going` takes a person out, and only an account
-    // can give one: `m-3` (maybe), `m-2` (silence) and both guests are in.
-    // `g-1` carries `not_going` and is still in — a guest is never asked, and
-    // the guest clause is the rule.
-    expect(splitForScope("all_going", roster, 10000)).toEqual([
-      { memberId: "g-1", shareAmount: 2000 },
-      { memberId: "g-2", shareAmount: 2000 },
-      { memberId: "m-1", shareAmount: 2000 },
-      { memberId: "m-2", shareAmount: 2000 },
-      { memberId: "m-3", shareAmount: 2000 },
-    ]);
-  });
-
-  it("splits an everyone-invited cost between the whole roster", () => {
-    // Declines included: the house is shared by the invitees, not only by
-    // whoever answered yes.
-    expect(splitForScope("all_invited", roster, 10000)).toEqual([
-      { memberId: "g-1", shareAmount: 2000 },
-      { memberId: "g-2", shareAmount: 2000 },
-      { memberId: "m-1", shareAmount: 2000 },
-      { memberId: "m-2", shareAmount: 2000 },
-      { memberId: "m-3", shareAmount: 2000 },
-    ]);
-  });
-
-  it("hands the remainder cents out in the member-id order it resolved", () => {
-    // The order is load-bearing: it decides who gets the extra cent, and
-    // it is the same order the API resolves and records in.
-    expect(splitForScope("all_going", roster, 10001)).toEqual([
-      { memberId: "g-1", shareAmount: 2001 },
-      { memberId: "g-2", shareAmount: 2000 },
-      { memberId: "m-1", shareAmount: 2000 },
-      { memberId: "m-2", shareAmount: 2000 },
-      { memberId: "m-3", shareAmount: 2000 },
-    ]);
-  });
-
-  it("always sums back to the amount, whatever the scope and the roster", () => {
-    for (const amount of [1, 7, 100, 10001, 99999]) {
-      for (const scope of ["all_going", "all_invited"] as const) {
-        const shares = splitForScope(scope, roster, amount);
+    for (const amount of [1, 2, 100, 10001, 12442, 99999]) {
+      for (const count of [1, 2, 3, 4]) {
+        const participantIds = FOUR.slice(0, count);
+        const shares = previewShares(trip, { amount, participantIds });
         expect(shares.reduce((sum, share) => sum + share.shareAmount, 0)).toBe(
           amount,
         );
+        expect(shares.map((share) => share.memberId)).toEqual(participantIds);
       }
     }
   });
 
-  it("answers nothing for a scope that resolves nobody, and lets the screen decide", () => {
-    // The floor is the API's (`D5`): a create is refused and a read falls
-    // back to the payer. This function reports the truth — nobody — and
-    // the form is what refuses it.
-    expect(splitForScope("all_going", roster, 10000)).not.toHaveLength(0);
-    // Everyone declined: the rule resolves nobody, and `withPayerFallback` is
-    // the read's answer rather than this function's.
-    expect(
-      splitForScope(
-        "all_going",
-        [
-          { id: "m-1", status: "not_going", userId: "user-1" },
-          { id: "m-2", status: "not_going", userId: "user-2" },
-        ],
-        10000,
-      ),
-    ).toEqual([]);
-    expect(splitForScope("all_invited", [], 10000)).toEqual([]);
+  it("gives the leftover cent to whoever is behind, not to the same seat", () => {
+    // One cent among four, three times. The server's spread hands each of the
+    // first three costs to a different person, so the fourth cost is m-4's —
+    // and every one of them ends up a cent.
+    const trip = ["a", "b", "c"].map((id) =>
+      shared({ id, amount: 1 }, FOUR),
+    );
+
+    const first = previewShares([], {
+      amount: 1,
+      participantIds: FOUR,
+    });
+    expect(first.filter((share) => share.shareAmount === 1)).toHaveLength(1);
+    expect(first[0]).toEqual({ memberId: "m-1", shareAmount: 1 });
+
+    const fourth = previewShares(trip, {
+      amount: 1,
+      participantIds: FOUR,
+    });
+    expect(fourth[3]).toEqual({ memberId: "m-4", shareAmount: 1 });
+    expect(fourth.reduce((sum, share) => sum + share.shareAmount, 0)).toBe(1);
   });
 
-  it("resolves nobody for a fixed list, which is the rows' job", () => {
-    // `custom` stores participant rows; the rule has nothing to resolve,
-    // and the form's picker is what names the people.
-    expect(splitForScope("custom", roster, 10000)).toEqual([]);
+  it("takes a draft out of the trip it is editing instead of adding it", () => {
+    const first = shared({ id: "p1", amount: 1000 }, FOUR);
+
+    // Editing p1 without changing anything previews p1's own shares: the
+    // draft replaces its row rather than becoming a second $10 cost.
+    const edit = previewShares([first], {
+      id: "p1",
+      createdAt: first.createdAt,
+      amount: 1000,
+      participantIds: FOUR,
+    });
+    expect(edit.map((share) => share.shareAmount)).toEqual([250, 250, 250, 250]);
+
+    // A *new* $10 cost on top of it is a different question, and the answer
+    // is still even: the second cost's leftover cents go to the people who
+    // do not have one yet.
+    const added = previewShares([first], {
+      amount: 1000,
+      participantIds: FOUR,
+    });
+    expect(added.map((share) => share.shareAmount)).toEqual([250, 250, 250, 250]);
+  });
+
+  it("spots the leftover cents to the people behind on an odd trip", () => {
+    const trip = [shared({ id: "p1", amount: 1000 }, FOUR)];
+
+    // $10.10 more, four ways: 252.5 each. The two people who are nearest that
+    // get the odd cents, so nobody drifts.
+    const added = previewShares(trip, {
+      amount: 1010,
+      participantIds: FOUR,
+    });
+    expect(added.map((share) => share.shareAmount).sort()).toEqual([
+      252, 252, 253, 253,
+    ]);
+  });
+
+  it("spreads a new cost after the rows already on its day", () => {
+    // A draft's `createdAt` sorts after every stored row on the same day,
+    // which is where the server's own insert lands — so the preview of a
+    // same-day expense is the row the reader gets back.
+    const sameDay = shared(
+      { id: "p1", amount: 1000, date: DAY, createdAt: DAY },
+      FOUR,
+    );
+
+    expect(
+      previewShares([sameDay], {
+        amount: 1000,
+        participantIds: FOUR,
+      }).map((share) => share.shareAmount),
+    ).toEqual([250, 250, 250, 250]);
+  });
+});
+
+describe("paymentInstant", () => {
+  it("stamps a day so the ledger reads the same day back", () => {
+    for (const timeZone of ["UTC", "America/Los_Angeles", "Pacific/Auckland"]) {
+      for (const day of ["2026-10-27", "2026-01-01", "2026-12-31"]) {
+        const payment = makePayment({
+          date: paymentInstant(day, timeZone),
+        });
+        expect(paymentDay(payment, timeZone)).toBe(day);
+      }
+    }
   });
 });
 

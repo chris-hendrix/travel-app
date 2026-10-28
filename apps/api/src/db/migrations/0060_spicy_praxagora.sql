@@ -1,0 +1,1 @@
+ALTER TABLE "payment_participants" DROP COLUMN "share_amount";

@@ -1914,12 +1914,10 @@ describe("trip.service", () => {
           {
             paymentId: payment!.id,
             memberId: coOrg1!.id,
-            shareAmount: 1000,
           },
           {
             paymentId: payment!.id,
             memberId: coOrg2!.id,
-            shareAmount: 1000,
           },
         ]);
 
@@ -1941,7 +1939,6 @@ describe("trip.service", () => {
         expect(participantsAfter).toHaveLength(1);
         expect(participantsAfter[0]).toMatchObject({
           memberId: coOrg2!.id,
-          shareAmount: 2000,
         });
 
         await db.delete(payments).where(eq(payments.id, payment!.id));

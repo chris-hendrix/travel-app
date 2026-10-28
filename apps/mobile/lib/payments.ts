@@ -11,9 +11,9 @@
  */
 
 import { formatCents } from "@/lib/money";
-import { wallClock } from "@/lib/timezone";
-import { equalShares, scopeMemberIds } from "@journiful/shared/utils";
-import type { SplitMember, SplitScope } from "@journiful/shared/utils";
+import { wallClock, zoneOffsetMinutes } from "@/lib/timezone";
+import { ledgerOrder, spreadShares } from "@journiful/shared/utils";
+import type { SplitScope } from "@journiful/shared/utils";
 
 /**
  * The three ways a cost can be shared, re-exported from the shared rule
@@ -131,58 +131,106 @@ export function paymentsInOrder(payments: Payment[]): Payment[] {
 }
 
 /**
- * Each person's share of an equal split, in the order the ids are given.
+ * A row being priced in the form: the amount, the people, and where it sits
+ * in the trip's history.
  *
- * The arithmetic is **not** restated here. `equalShares`
- * (`shared/utils/split.ts`) is the one rule, applied by the API when it
- * records a split, by `splitForScope` below when the form previews a
- * scope, and by the demo — so the preview and the row it previews cannot
- * disagree. It is the largest-remainder rule: the integer division each,
- * and the leftover cents one each to the first `remainder` entries, not
- * all of them to the first. The two readings agree whenever the
- * remainder is 0 or 1, which is why the difference is easy to miss —
- * $100 between three is `[34, 33, 33]` either way, but $100.01 is
- * `[34, 34, 33]` here and `[35, 33, 33]` under the wrong one.
- *
- * The order is the caller's, and it is load-bearing: it decides who gets
- * the extra cent, and the form sends this same array in this same order.
+ * `id` and `createdAt` are what make a preview an **edit**. Without them the
+ * row is new, and a new row is the last thing the trip has done — which is why
+ * its `createdAt` defaults to a fixed instant after every stored row, not
+ * `Date.now()`, so the preview cannot change under a device clock that
+ * disagrees with the server's.
  */
-export function splitPreview(amount: number, memberIds: string[]): number[] {
-  return equalShares(amount, memberIds.length);
+export interface DraftSplit {
+  amount: number;
+  participantIds: readonly string[];
+  /** The row being edited, so it replaces itself instead of doubling. */
+  id?: string | null | undefined;
+  createdAt?: string | null | undefined;
 }
 
-/**
- * A scope, resolved against the roster and priced: who shares the cost
- * and what each of them owes, in member-id order.
- *
- * The client's half of the rule the API applies when it records a scoped
- * expense (`PaymentService` through `payment-split.ts`), over the same
- * two shared functions — `scopeMemberIds` for who, `equalShares` for how
- * much — so the form's previewed split and the row the server stores are
- * the same split. The roster arrives as the three facts the rule reads
- * (`SplitMember`), which the app's `Member` already is, so no screen has
- * to build a second shape.
- *
- * An empty answer is an answer: a roster where nobody is going resolves
- * to nobody, and the shares are `[]`. The floor that keeps a split from
- * being empty is the shared `withPayerFallback` (D5): a create is refused
- * because the API refuses it too, while an edit shows the payer owing the
- * lot, because that is what the server stores and reads back. Either way
- * the screen is what says why the rows are empty (`emptyScopeSentence`)
- * rather than this function inventing a participant.
- */
-export function splitForScope(
-  scope: SplitScope,
-  members: readonly SplitMember[],
-  amount: number,
-): ScopedShare[] {
-  const memberIds = scopeMemberIds(scope, members);
-  const shares = equalShares(amount, memberIds.length);
+/** The id a draft is spread under when it is not yet a row. */
+const DRAFT_ID = "draft-expense";
 
-  return memberIds.map((memberId, index) => ({
+/** See `DraftSplit.createdAt`: later than any row that exists. */
+const DRAFT_CREATED_AT = "9999-12-31T23:59:59.999Z";
+
+/**
+ * What each person on the draft will owe, once it is saved.
+ *
+ * The arithmetic is **not** restated here. `spreadShares`
+ * (`shared/utils/split.ts`) is the one rule — the same function the API runs
+ * over the trip's payments in `payment-split.ts` — so this is not a model of
+ * the server's answer, it *is* the server's answer, over the trip the client
+ * already holds. That is why the whole list comes in: a share is a fact about
+ * the trip's history, not about one expense, and a preview computed from the
+ * draft alone would disagree with the saved row by a cent on any trip whose
+ * costs do not divide.
+ *
+ * Returns the draft's people in the order it was given them, which is the
+ * order the form shows and the order a `custom` create sends. Order is not
+ * load-bearing for the amount any more (the rule sorts), but it is what lines
+ * these numbers up with the rows on screen.
+ */
+export function previewShares(
+  existing: readonly Payment[],
+  draft: DraftSplit,
+): ScopedShare[] {
+  const draftId = draft.id ?? DRAFT_ID;
+
+  const steps = [
+    ...existing
+      .filter((payment) => payment.id !== draftId)
+      .map((payment) => ({
+        id: payment.id,
+        amount: payment.amount,
+        createdAt: payment.createdAt,
+        participantIds: payment.participants.map(
+          (participant) => participant.memberId,
+        ),
+      })),
+    {
+      id: draftId,
+      amount: draft.amount,
+      createdAt: draft.createdAt ?? DRAFT_CREATED_AT,
+      participantIds: [...draft.participantIds],
+    },
+  ];
+
+  const ordered = ledgerOrder(steps);
+  const spreads = spreadShares(ordered);
+  const at = ordered.findIndex((step) => step.id === draftId);
+  const shares = spreads[at]?.shares ?? [];
+  const participantIds = ordered[at]?.participantIds ?? [];
+
+  return participantIds.map((memberId, index) => ({
     memberId,
     shareAmount: shares[index] ?? 0,
   }));
+}
+
+/**
+ * A day the API will read back as that same day, anywhere.
+ *
+ * `lib/newStay.ts`'s `stamp` rule with the clock fixed at noon: the offset is
+ * taken from the zone the day was read in, at noon on the day itself, so the
+ * instant is the middle of that day rather than an edge of it. Noon because
+ * the ledger reads the day back in the same zone (`paymentDay`) and a midnight
+ * would be the day before for anybody far enough east.
+ *
+ * Here rather than in the form so the rule has one home with `paymentDay`,
+ * which reads it back.
+ */
+export function paymentInstant(day: string, timeZone: string | null): string {
+  const [year, month, date] = day.split("-").map(Number) as [
+    number,
+    number,
+    number,
+  ];
+  const offsetMinutes = zoneOffsetMinutes(timeZone, `${day}T12:00:00.000Z`);
+
+  return new Date(
+    Date.UTC(year, month - 1, date, 12, 0) - offsetMinutes * 60_000,
+  ).toISOString();
 }
 
 /**

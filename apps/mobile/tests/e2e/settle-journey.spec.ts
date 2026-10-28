@@ -54,9 +54,9 @@
  * Selectors are accessible names, never `testID`: `getByRole` for the
  * doors and the fields, `getByText` for the sentences the ledger writes.
  * Nothing here re-verifies a unit test — `__tests__/payments.test.ts`
- * owns `moveFor`, `splitPreview` and `positionFor`, and the amounts are
+ * owns `moveFor`, `previewShares` and `positionFor`, and the amounts are
  * the ones that divide evenly precisely so neither test is a second test
- * of the remainder cent. Field-level validation is banned at this level
+ * of the leftover cent. Field-level validation is banned at this level
  * and is not asserted.
  */
 
@@ -85,13 +85,12 @@ test.describe("Settle Journey", () => {
     const guestName = uniqueLabel("Money Guest");
     const laterGuestName = uniqueLabel("Later Guest");
     const description = uniqueLabel("Harbour dinner");
-    // $45.00 between two people is $22.50 each with no remainder cent, so
-    // the sentence below does not depend on which of the two the roster
-    // happens to list first (the server hands the remainder to the first
-    // participant it is sent — `lib/payments.ts:splitPreview`).
+    // $45.00 between two people is $22.50 each with no leftover cent, so the
+    // sentence below does not depend on which of the two the trip's spread
+    // happens to favour (`shared/utils/split.ts:spreadShares`).
     const amount = "45.00";
     const share = "$22.50";
-    // The same $45.00 across three is $15.00 each, again with no remainder
+    // The same $45.00 across three is $15.00 each, again with no leftover
     // cent to hand out: the third person joins without re-dividing an odd
     // cent, so the shares below are three equal numbers.
     const thirdShare = "$15.00";

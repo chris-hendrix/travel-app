@@ -854,6 +854,13 @@ export type Payment = typeof payments.$inferSelect;
 export type NewPayment = typeof payments.$inferInsert;
 
 // Payment Participants (who owes for a payment)
+//
+// One row is one person on one cost — **the list, not the amounts**. A share
+// is a fact about the whole trip (`shared/utils/split.ts:spreadShares`: the
+// leftover cents follow the trip's running rounding debt, not the row order),
+// so storing one here would be a second, staler opinion. It used to be a
+// `share_amount` column, written per payment and read by the ledger; the two
+// disagreed by cents on any trip with more than a couple of costs.
 export const paymentParticipants = pgTable(
   "payment_participants",
   {
@@ -865,7 +872,6 @@ export const paymentParticipants = pgTable(
     memberId: uuid("member_id")
       .notNull()
       .references(() => members.id, { onDelete: "restrict" }),
-    shareAmount: integer("share_amount").notNull(), // cents — computed at write time
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

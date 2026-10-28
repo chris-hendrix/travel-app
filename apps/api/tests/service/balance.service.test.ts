@@ -10,6 +10,7 @@ import {
 import { eq, or } from "drizzle-orm";
 import { BalanceService } from "@/services/balance.service.js";
 import { PermissionsService } from "@/services/permissions.service.js";
+import { loadTripSplits } from "@/services/payment-split.js";
 import { PermissionDeniedError } from "@/errors.js";
 import { generateUniquePhone } from "../test-utils.js";
 
@@ -53,11 +54,17 @@ describe("balance.service", () => {
     }
   };
 
-  /** Create a payment keyed by member ids. */
+  /**
+   * Create a payment keyed by member ids.
+   *
+   * Heads are not passed in any more: a share is the trip's spread, resolved
+   * on read (`payment-split.ts`), so the fixture says who was on the cost and
+   * the assertion says what it came to.
+   */
   const createPayment = async (
     payerMemberId: string,
     amount: number,
-    shares: { memberId: string; shareAmount: number }[],
+    participants: { memberId: string }[],
     description = "Test payment",
   ) => {
     const [payment] = await db
@@ -71,10 +78,9 @@ describe("balance.service", () => {
       })
       .returning();
     await db.insert(paymentParticipants).values(
-      shares.map((s) => ({
+      participants.map((participant) => ({
         paymentId: payment!.id,
-        memberId: s.memberId,
-        shareAmount: s.shareAmount,
+        memberId: participant.memberId,
       })),
     );
     return payment!;
@@ -185,8 +191,8 @@ describe("balance.service", () => {
       memberAId,
       3000,
       [
-        { memberId: memberBId, shareAmount: 1500 },
-        { memberId: memberCId, shareAmount: 1500 },
+        { memberId: memberBId },
+        { memberId: memberCId },
       ],
       "Dinner",
     );
@@ -214,9 +220,9 @@ describe("balance.service", () => {
       memberAId,
       3000,
       [
-        { memberId: memberAId, shareAmount: 1000 },
-        { memberId: memberBId, shareAmount: 1000 },
-        { memberId: memberCId, shareAmount: 1000 },
+        { memberId: memberAId },
+        { memberId: memberBId },
+        { memberId: memberCId },
       ],
       "Lunch",
     );
@@ -245,8 +251,8 @@ describe("balance.service", () => {
       memberAId,
       2000,
       [
-        { memberId: memberAId, shareAmount: 1000 },
-        { memberId: memberBId, shareAmount: 1000 },
+        { memberId: memberAId },
+        { memberId: memberBId },
       ],
       "Coffee",
     );
@@ -255,7 +261,7 @@ describe("balance.service", () => {
     await createPayment(
       memberBId,
       1000,
-      [{ memberId: memberAId, shareAmount: 1000 }],
+      [{ memberId: memberAId }],
       "Settlement",
     );
 
@@ -264,26 +270,115 @@ describe("balance.service", () => {
   });
 
   it("should handle cent rounding correctly ($1.00 / 3)", async () => {
-    // Alice pays $1.00 (100 cents) split 3 ways
-    // 100/3 = 33 remainder 1 => first gets 34, rest get 33
+    // Alice pays $1.00 (100 cents) split 3 ways. 100/3 leaves one cent over,
+    // and it is no longer the payer's by right: the trip's spread hands the
+    // leftover to whoever is furthest behind (`spreadShares`), so the one
+    // fixed thing is the set of shares, not the seat.
     await createPayment(
       memberAId,
       100,
       [
-        { memberId: memberAId, shareAmount: 34 },
-        { memberId: memberBId, shareAmount: 33 },
-        { memberId: memberCId, shareAmount: 33 },
+        { memberId: memberAId },
+        { memberId: memberBId },
+        { memberId: memberCId },
       ],
       "Gum",
     );
 
+    const split = await loadTripSplits(db, tripId);
+    const shares = [...split.participants.values()].flat();
+    expect(shares.map((p) => p.shareAmount).sort((a, b) => b - a)).toEqual([
+      34, 33, 33,
+    ]);
+
+    const aliceShare = shares.find((p) => p.memberId === memberAId)!.shareAmount;
+
     const balances = await balanceService.getTripBalances(userAId, tripId);
-    // Alice net: 100 - 34 = 66 (owed)
-    // Bob net: -33 (owes)
-    // Charlie net: -33 (owes)
     expect(balances).toHaveLength(2);
     const totalOwed = balances.reduce((sum, b) => sum + b.amount, 0);
-    expect(totalOwed).toBe(66);
+    // Alice paid the lot and owes her own share of it; the other two owe
+    // exactly the difference, to the cent.
+    expect(totalOwed).toBe(100 - aliceShare);
+    expect(balances.every((balance) => balance.to.id === memberAId)).toBe(true);
+  });
+
+  it("keeps four people within a cent, and settles to exactly zero", async () => {
+    // The trip behind the bug report: four people share every cost and one of
+    // them pays all four. Rounding each cost on its own handed the leftover
+    // cents to the same seats, and the other three came out
+    // `67.27 / 67.25 / 67.24` — three cents apart, with the payer's own share
+    // on the wrong end of it. Under the trip-wide spread the totals are
+    // `67.26 / 67.26 / 67.26 / 67.25`.
+    const [dee] = await db
+      .insert(members)
+      .values({
+        tripId,
+        userId: null,
+        guestDisplayName: "Dee",
+        status: "going",
+      })
+      .returning();
+
+    const everyone = [memberAId, memberBId, memberCId, dee!.id].map(
+      (memberId) => ({ memberId }),
+    );
+    for (const amount of [2800, 7650, 4011, 12442]) {
+      await createPayment(memberAId, amount, everyone, "Shared");
+    }
+
+    const split = await loadTripSplits(db, tripId);
+    const totals = new Map<string, number>();
+    for (const [paymentId, participants] of split.participants) {
+      const amount = split.payments.find((row) => row.id === paymentId)!.amount;
+      expect(
+        participants.reduce((sum, p) => sum + p.shareAmount, 0),
+      ).toBe(amount);
+      for (const participant of participants) {
+        totals.set(
+          participant.memberId,
+          (totals.get(participant.memberId) ?? 0) + participant.shareAmount,
+        );
+      }
+    }
+
+    const spent = 2800 + 7650 + 4011 + 12442;
+    const exact = spent / everyone.length;
+    expect([...totals.values()].reduce((sum, cents) => sum + cents, 0)).toBe(
+      spent,
+    );
+    for (const cents of totals.values()) {
+      expect(Math.abs(cents - exact)).toBeLessThanOrEqual(1);
+    }
+    // Every member's total is an exact split of the sum: the cents are all
+    // there, and no two people are more than one cent apart.
+    expect(
+      Math.max(...totals.values()) - Math.min(...totals.values()),
+    ).toBeLessThanOrEqual(1);
+
+    const balances = await balanceService.getTripBalances(userAId, tripId);
+    expect(balances).toHaveLength(3);
+    const owed = balances.reduce((sum, balance) => sum + balance.amount, 0);
+    expect(balances.every((balance) => balance.to.id === memberAId)).toBe(true);
+    expect(owed).toBe(spent - totals.get(memberAId)!);
+
+    // Settle every move the ledger shows, the way the form does — a payment
+    // from the debtor with the creditor as its only participant. The ledger
+    // must come back empty, not a cent short: integer totals are what make
+    // that exact.
+    for (const balance of balances) {
+      await createPayment(
+        balance.from.id,
+        balance.amount,
+        [{ memberId: balance.to.id }],
+        "Settled up",
+      );
+    }
+
+    expect(await balanceService.getTripBalances(userAId, tripId)).toEqual([]);
+    expect(await balanceService.getMyBalance(userAId, tripId)).toEqual({
+      netBalance: 0,
+      details: [],
+    });
   });
 
   it("should simplify cross-debts between multiple people", async () => {
@@ -292,8 +387,8 @@ describe("balance.service", () => {
       memberAId,
       3000,
       [
-        { memberId: memberBId, shareAmount: 1500 },
-        { memberId: memberCId, shareAmount: 1500 },
+        { memberId: memberBId },
+        { memberId: memberCId },
       ],
       "Dinner",
     );
@@ -302,7 +397,7 @@ describe("balance.service", () => {
     await createPayment(
       memberBId,
       2000,
-      [{ memberId: memberAId, shareAmount: 2000 }],
+      [{ memberId: memberAId }],
       "Lunch",
     );
 
@@ -334,7 +429,7 @@ describe("balance.service", () => {
       .returning();
 
     await db.insert(paymentParticipants).values([
-      { paymentId: payment!.id, memberId: memberBId, shareAmount: 5000 },
+      { paymentId: payment!.id, memberId: memberBId },
     ]);
 
     expect(await balanceService.getTripBalances(userAId, tripId)).toHaveLength(1);
@@ -360,8 +455,8 @@ describe("balance.service", () => {
       memberAId,
       2000,
       [
-        { memberId: memberAId, shareAmount: 1000 },
-        { memberId: guest!.id, shareAmount: 1000 },
+        { memberId: memberAId },
+        { memberId: guest!.id },
       ],
       "Dinner",
     );
@@ -391,9 +486,9 @@ describe("balance.service", () => {
       guest!.id,
       3000,
       [
-        { memberId: guest!.id, shareAmount: 1000 },
-        { memberId: memberAId, shareAmount: 1000 },
-        { memberId: memberBId, shareAmount: 1000 },
+        { memberId: guest!.id },
+        { memberId: memberAId },
+        { memberId: memberBId },
       ],
       "Mom treats",
     );
@@ -425,8 +520,8 @@ describe("balance.service", () => {
       memberAId,
       2000,
       [
-        { memberId: memberAId, shareAmount: 1000 },
-        { memberId: guestMemberId, shareAmount: 1000 },
+        { memberId: memberAId },
+        { memberId: guestMemberId },
       ],
       "Dinner",
     );
@@ -494,9 +589,9 @@ describe("balance.service", () => {
         memberAId,
         3000,
         [
-          { memberId: memberAId, shareAmount: 1000 },
-          { memberId: memberBId, shareAmount: 1000 },
-          { memberId: memberCId, shareAmount: 1000 },
+          { memberId: memberAId },
+          { memberId: memberBId },
+          { memberId: memberCId },
         ],
         "Custom dinner",
       );
@@ -592,9 +687,9 @@ describe("balance.service", () => {
         memberAId,
         3000,
         [
-          { memberId: memberAId, shareAmount: 1000 },
-          { memberId: memberBId, shareAmount: 1000 },
-          { memberId: memberCId, shareAmount: 1000 },
+          { memberId: memberAId },
+          { memberId: memberBId },
+          { memberId: memberCId },
         ],
         "Dinner",
       );
@@ -627,8 +722,8 @@ describe("balance.service", () => {
         memberAId,
         2000,
         [
-          { memberId: memberAId, shareAmount: 1000 },
-          { memberId: guest!.id, shareAmount: 1000 },
+          { memberId: memberAId },
+          { memberId: guest!.id },
         ],
         "Dinner",
       );
@@ -646,8 +741,8 @@ describe("balance.service", () => {
         memberBId,
         2000,
         [
-          { memberId: memberBId, shareAmount: 1000 },
-          { memberId: guest!.id, shareAmount: 1000 },
+          { memberId: memberBId },
+          { memberId: guest!.id },
         ],
         "Lunch",
       );
