@@ -42,6 +42,13 @@ import { pickPlace } from "@/lib/place-pick";
  * this. The picker runs a day past the trip's end: a stay is booked
  * through its last night, so check-out is the morning after.
  */
+// Hoisted, not written inline in the JSX below: `Stack.Screen` re-applies
+// its options whenever the object's identity changes (`expo-router`'s
+// `Screen` effect depends on `options`), so an inline literal asks the
+// navigator to re-apply them on every render of this dialog — and this
+// dialog renders on every keystroke.
+const MODAL_SCREEN_OPTIONS = { presentation: "modal" } as const;
+
 export function StayDialog({
   title,
   /** The dialog's one verb: "Add stay" or "Save changes". */
@@ -223,7 +230,7 @@ export function StayDialog({
       onDanger={onDelete}
       dismissHref={dismissHref}
     >
-      <Stack.Screen options={{ presentation: "modal" }} />
+      <Stack.Screen options={MODAL_SCREEN_OPTIONS} />
       {serverError ? <InlineError message={serverError} /> : null}
       <Text className="font-body text-sm text-ink">{trip.title}</Text>
 

@@ -20,6 +20,13 @@ import {
 import { pickPlace } from "@/lib/place-pick";
 import { tripCreatePlaceFields } from "@/lib/queries/trips";
 
+// Hoisted, not written inline in the JSX below: `Stack.Screen` re-applies
+// its options whenever the object's identity changes (`expo-router`'s
+// `Screen` effect depends on `options`), so an inline literal asks the
+// navigator to re-apply them on every render of this form — and this
+// form renders on every keystroke.
+const MODAL_SCREEN_OPTIONS = { presentation: "modal" } as const;
+
 export default function NewTrip() {
   const { addTrip } = useTrips();
   const router = useRouter();
@@ -150,7 +157,7 @@ export default function NewTrip() {
       {/* Modals are routes, presented modally: iOS slides it up and
           allows a swipe-down dismiss, Android maps its hardware back
           to the same dismissal. */}
-      <Stack.Screen options={{ presentation: "modal" }} />
+      <Stack.Screen options={MODAL_SCREEN_OPTIONS} />
       <TextField
         label="Trip name"
         value={title}
@@ -210,20 +217,6 @@ export default function NewTrip() {
         <Text className="font-body text-sm text-ink">{failure}</Text>
       ) : null}
 
-      <View className="gap-1">
-        <Text className="font-body-bold text-sm text-ink">
-          What happens next
-        </Text>
-        {/* Where this leaves you, said once. Creation replaces to the new
-            trip's own detail (`router.replace` above), so the reader
-            arrives inside the trip they just made — and that empty state
-            is the one offering the stay and the event. The sentence used
-            to promise the Upcoming list, which is where nobody lands. */}
-        <Text className="font-body text-sm text-ink">
-          You'll be taken to your empty trip, where you can add stays,
-          events, and friends.
-        </Text>
-      </View>
     </FullscreenDialog>
   );
 }

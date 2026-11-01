@@ -299,6 +299,13 @@ export function AppHeader({
             {action}
             {onClose ? (
               <Pressable
+                // `role` and not just the label: without it this renders as
+                // a plain generic box that happens to be clickable, so a
+                // screen reader announces "Close" with no role, and the
+                // dismiss control every dialog wears is not a button to
+                // anybody who cannot see it. The zone token beside it has
+                // said `role="button"` all along.
+                role="button"
                 aria-label="Close"
                 onPress={onClose}
                 className={`pl-4 pr-1 py-2.5 ${motion.press}`}

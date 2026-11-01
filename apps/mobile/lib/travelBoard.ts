@@ -50,6 +50,101 @@ export type TravelBoard = {
 };
 
 /**
+ * The id a row still owed carries: the member and the direction it is
+ * owed in, and nothing else — there is no record behind it to name.
+ *
+ * Written here and read back by `parsePendingRowId` below, because the
+ * two are one format: the board builds it, the address it is handed out
+ * as carries it (`/trips/travel/detail?id=…&travel=…`), and the sheet
+ * behind that address reads it back to find out who it is about.
+ */
+export function pendingRowId(
+  direction: "arrival" | "departure",
+  memberId: string,
+): string {
+  return `pending-${direction}-${memberId}`;
+}
+
+/**
+ * The member and direction an owed row's id names, or null for any other
+ * id — a record's own, which is opaque here.
+ *
+ * The member id is everything after the direction, so a member id that
+ * itself carries dashes (they are uuids) survives the read: the prefix
+ * is matched, never split.
+ */
+export function parsePendingRowId(
+  rowId: string,
+): { direction: "arrival" | "departure"; memberId: string } | null {
+  const match = /^pending-(arrival|departure)-(.+)$/.exec(rowId);
+  if (!match) return null;
+  return {
+    direction: match[1] as "arrival" | "departure",
+    memberId: match[2] as string,
+  };
+}
+
+/**
+ * Whether this board row is one nobody has filed yet.
+ *
+ * The third question about the same format, beside the writer and the
+ * reader: `pendingRowId` builds the id, `parsePendingRowId` reads it back,
+ * and this asks whether a row carries one. Three call sites in the record
+ * sheet need it — the two action blocks that require a record behind the
+ * row, and the edit door that falls back to the member and the direction
+ * instead of a record id — and they all spelled it `row.id.startsWith(
+ * "pending-")` while the format had no owner.
+ *
+ * A row rather than an id, because that is what every caller has, and
+ * because the question is about the row's kind rather than about a
+ * string: `TravelRow.time === null` is the board's own test for owed, and
+ * it is wider than this one (a record can be timeless without being
+ * `pending-`), so a caller asking "is this row owed" should say which of
+ * the two it means.
+ */
+export function isOwedRow(row: TravelRow): boolean {
+  return parsePendingRowId(row.id) !== null;
+}
+
+/**
+ * The row an address names, read forward onto what that member holds now.
+ *
+ * A board row's id is stable while it is a record's own, and **not**
+ * stable while it is the `pending-…` a row still owes — that one stops
+ * existing the moment somebody files. Which is the ordinary path, not an
+ * edge: the board lists the rows you owe, an owed row's sheet opens the
+ * form on the member and the direction (`app/trips/travel/detail.tsx`),
+ * and the save lands back on that sheet with the id the row had before
+ * it was filed. Read by id alone, the sheet then answered "that travel
+ * is not on this trip any more" over the record the reader had just
+ * written — a dead end after a successful save, and the one screen that
+ * could be reached by filing your own travel for the first time.
+ *
+ * So an owed id is not a lookup key, it is a **reference**: it names a
+ * member and a direction, and it resolves to whatever that member holds
+ * in that direction now. That is why it survives the save, and why a
+ * reload, a bookmark or a link handed to somebody else keeps resolving
+ * rather than going stale. A filed id stays an exact match, and an id
+ * that resolves to neither is still nothing — the row it named is gone
+ * (`app/trips/travel/form.tsx` answers the same question for a delete,
+ * by rewriting the address it stays on).
+ */
+export function travelRowFor(
+  board: TravelBoard,
+  rowId: string,
+): TravelRow | undefined {
+  const rows = [...board.arrivals, ...board.departures];
+  const exact = rows.find((row) => row.id === rowId);
+  if (exact) return exact;
+  const owed = parsePendingRowId(rowId);
+  if (!owed) return undefined;
+  return rows.find(
+    (row) =>
+      row.memberId === owed.memberId && row.travelType === owed.direction,
+  );
+}
+
+/**
  * The half of a record the board files: the arrival's arrival, the
  * departure's departure, as an instant. Null when that side was never
  * filled in — a row without a time is still owed.
@@ -99,7 +194,7 @@ function orderDirection(
   for (const member of members) {
     if (seen.has(member.id)) continue;
     rows.push({
-      id: `pending-${direction}-${member.id}`,
+      id: pendingRowId(direction, member.id),
       memberId: member.id,
       memberName: member.name,
       travelType: direction,

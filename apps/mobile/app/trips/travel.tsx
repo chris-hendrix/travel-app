@@ -86,7 +86,7 @@ function TripTravelDialog() {
     return (
       <FullscreenDialog title="Travel" dismissHref="/trips">
         <Text className="font-body text-base text-ink">
-          No trip to show. Start one from the trips screen.
+          No trip to show.
         </Text>
       </FullscreenDialog>
     );
@@ -122,19 +122,7 @@ function TripTravelDialog() {
         <Text className="font-body text-base text-ink">
           Nobody has shared their times yet.
         </Text>
-      ) : (
-        // Said once rather than marked eight times. The row carries the
-        // person, the mode, the where and the when; the number, the far end
-        // and the prose are on the row's own screen, and nothing on a row
-        // says so — the system's rows take no chevron (`ScheduleRow`
-        // carries the rule), and a press fill is not a signpost: it answers
-        // a press, it does not promise one. So the board says what a press
-        // does, in the form's own vocabulary, and only when there is a
-        // filed record behind a row to open.
-        <Text className="font-body text-sm text-grey-quiet">
-          A row opens on the number, the far end and the details.
-        </Text>
-      )}
+      ) : null}
 
       {travelStatus === "success" ? (
         <View className="gap-8">

@@ -373,8 +373,7 @@ function Sent({ outcome }: { outcome: InviteOutcome }) {
       </Text>
       {outcome.added.length > 0 ? (
         <Text className="font-body text-base text-ink">
-          {list(outcome.added)} joined straight away — that number already
-          had an account.
+          {list(outcome.added)} joined straight away.
         </Text>
       ) : null}
       {outcome.skipped.length > 0 ? (

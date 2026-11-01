@@ -172,8 +172,7 @@ export function validateExpense(input: ExpenseInput): ExpenseErrors {
     if (input.scope === "custom") {
       errors.participants = "Nobody is on the split.";
     } else {
-      errors.scope =
-        "Set Split with to Choose people, then tick who it was between.";
+      errors.scope = "Choose who it was between.";
     }
   }
   if (!DAY.test(input.day)) errors.day = "Pick the day.";
@@ -216,6 +215,13 @@ function ShareRow({ label, amount }: { label: string; amount: number | null }) {
     </View>
   );
 }
+
+// Hoisted, not written inline in the JSX below: `Stack.Screen` re-applies
+// its options whenever the object's identity changes (`expo-router`'s
+// `Screen` effect depends on `options`), so an inline literal asks the
+// navigator to re-apply them on every render of this dialog — and this
+// dialog renders on every keystroke.
+const MODAL_SCREEN_OPTIONS = { presentation: "modal" } as const;
 
 export function ExpenseDialog({
   title,
@@ -472,7 +478,7 @@ export function ExpenseDialog({
       onDanger={onDanger}
       dismissHref={dismissHref}
     >
-      <Stack.Screen options={{ presentation: "modal" }} />
+      <Stack.Screen options={MODAL_SCREEN_OPTIONS} />
       {serverError ? <InlineError message={serverError} /> : null}
 
       <TextField

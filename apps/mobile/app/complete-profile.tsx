@@ -45,7 +45,7 @@ export default function CompleteProfile() {
     Intl.DateTimeFormat().resolvedOptions().timeZone ?? "Not set";
   const error =
     submitted && trimmed.length < 3
-      ? "At least three characters, so the group knows who you are."
+      ? "At least three characters."
       : undefined;
 
   // No session, nothing to complete. And somebody who is already through

@@ -34,13 +34,13 @@
     "typescript": "^6.0.3"
   },
   "pnpm": {
-    "//": "auditConfig.ignoreGhsas is for advisories with NO patched release, and every entry must say why. An override in `overrides` below is the fix wherever one exists; this list is not a place to silence things that could be bumped. GHSA-86w9-cpqp-85rv: node-forge<=1.4.0, and 1.4.0 is the newest published version, so there is nothing to override to (`Patched versions <0.0.0`). Reached only as apps/mobile > expo > @expo/cli > node-forge: build tooling, never bundled into the app. Delete this entry once upstream ships a fix. GHSA-vfj7-8cjw-p6xm: braces<=3.0.3, and 3.0.3 is the newest published version, so there is nothing to override to (`Patched versions <0.0.0`). Reached only as apps/mobile > expo > @expo/cli > @expo/metro-file-map > micromatch > braces: build tooling, never bundled into the app. Delete this entry once upstream ships a fix. GHSA-mrhx-c7xc-m3w5: zod<4.6.6, and 4.6.6 is the fix — but the copy here is zod 3.25.76, the newest published 3.x, reached only as apps/mobile > expo > @expo/cli > zod. @expo/cli (58.1.16, the newest) still declares `zod: ^3.25.76`, so there is no version to override to inside the range it accepts, and forcing 4.x under it is a major bump in another team's CLI. Nothing else depends on zod 3: api and shared are on 4.6.7. Build tooling, never bundled into the app and never loaded by the API. Delete this entry once @expo/cli moves to zod 4.",
+    "//": "auditConfig.ignoreGhsas is for advisories with NO patched release, and every entry must say why. An override in `overrides` below is the fix wherever one exists; this list is not a place to silence things that could be bumped. GHSA-vfj7-8cjw-p6xm: braces<=3.0.3, and 3.0.3 is the newest published version, so there is nothing to override to (`Patched versions <0.0.0`). Reached only as apps/mobile > expo > @expo/cli > @expo/metro-file-map > micromatch > braces: build tooling, never bundled into the app. Delete this entry once upstream ships a fix. GHSA-mrhx-c7xc-m3w5: zod<4.6.6, and 4.6.6 is the fix — but the copy here is zod 3.25.76, the newest published 3.x, reached only as apps/mobile > expo > @expo/cli > zod. @expo/cli (58.1.16, the newest) still declares `zod: ^3.25.76`, so there is no version to override to inside the range it accepts, and forcing 4.x under it is a major bump in another team's CLI. Nothing else depends on zod 3: api and shared are on 4.6.7. Build tooling, never bundled into the app and never loaded by the API. Delete this entry once @expo/cli moves to zod 4. node-forge used to be here (GHSA-86w9-cpqp-85rv) on the grounds that 1.4.0 was the newest published version; 1.4.1 exists now, so it is an override below like every other advisory with a fix. GHSA-qr28-fpjm-wq7f: decode-uri-component<=0.5.0, patched >=0.5.1 — and the patch cannot be taken here, because 0.5.1 is ESM-only (`\"type\": \"module\"`, no CJS entry, `exports.default` is the function) while the one copy in this tree is required by CJS `query-string@7.1.3` (`const decodeComponent = require('decode-uri-component')`, `index.js:3`). Forcing 0.5.1 under it makes `query-string.parse` throw `decodeComponent is not a function` — reproduced in this container before this entry was written — so the override is a broken app rather than a fix, and the escape hatch is this list. Reached only as apps/mobile > expo-router > query-string, which parses the app's own route params; the advisory is quadratic replacement (DoS) on a hostile percent-encoded run, and no attacker-supplied URI reaches it. Delete this entry once query-string ships a release that depends on 0.5.x.",
     "//overrides": "`@fastify/jwt` is pinned to 10.2.4. 10.2.5 no longer enforces token expiry under the way apps/api registers the plugin (nested `sign`/`verify` beside `secret`/`cookie`, `src/app.ts`): two integration tests that pass on 10.2.4, `should return 401 when token is expired` in GET /api/auth/me and in POST /api/auth/logout, come back 200 instead, and `pnpm audit` cannot decide that — only `pnpm --filter @journiful/api test` does. It is not the fast-jwt floor: 10.2.5 fails the same way against the 6.3.5 it asks for. It is also ignored in .github/dependabot.yml, so lifting this pin means doing both. Reached as apps/api > @fastify/jwt, and by apps/mobile in no way at all.",
     "auditConfig": {
       "ignoreGhsas": [
-        "GHSA-86w9-cpqp-85rv",
         "GHSA-vfj7-8cjw-p6xm",
-        "GHSA-mrhx-c7xc-m3w5"
+        "GHSA-mrhx-c7xc-m3w5",
+        "GHSA-qr28-fpjm-wq7f"
       ]
     },
     "onlyBuiltDependencies": [
@@ -72,7 +72,9 @@
       "@fastify/busboy@<3.2.1": ">=3.2.1",
       "sharp": ">=0.35.5",
       "shell-quote@<1.11.0": ">=1.11.0",
-      "source-map-js@<1.2.2": ">=1.2.2"
+      "source-map-js@<1.2.2": ">=1.2.2",
+      "node-forge": ">=1.4.1",
+      "follow-redirects": ">=1.16.2"
     }
   },
   "packageManager": "pnpm@10.30.1",

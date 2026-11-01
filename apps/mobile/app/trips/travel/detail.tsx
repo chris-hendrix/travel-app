@@ -24,7 +24,7 @@ import {
   whereLabel,
   type TravelSide,
 } from "@/lib/transportMode";
-import { travelBoard } from "@/lib/travelBoard";
+import { travelBoard, isOwedRow, travelRowFor } from "@/lib/travelBoard";
 import { travelForMemberDirection } from "@/lib/newTravel";
 import { copyTravelFor } from "@/lib/travelCopy";
 import { useTravel } from "@/lib/travelStore";
@@ -110,6 +110,15 @@ const DIRECTION_WORD = {
  * row's *far end* is the one fact read the other way, off the record
  * itself through `travelById`: the board's row carries the half the board
  * shows, and the other half is only on the `MockTravel` the store holds.
+ *
+ * The id is read through `travelRowFor` rather than matched, because the
+ * second of those two shapes is a reference rather than a key: an owed
+ * id names a member and a direction, and it stops existing the moment
+ * that member files. This sheet is where the owed row's own Edit door
+ * lands (`editHref` below), so the save comes back to an address whose
+ * row is gone — and answering "that travel is not on this trip any more"
+ * over the record just written was the one screen that filing your own
+ * travel for the first time could reach.
  */
 export default function TravelDetail() {
   return (
@@ -163,12 +172,14 @@ function TravelDetailDialog() {
   // `records` is a fresh array out of the store on every render, so a
   // `useMemo` keyed on it re-ran anyway while appearing to cache.
   const board = trip ? travelBoard(records, timeZone, going) : null;
+  // The row is read forward, not matched by id alone: an address naming a
+  // row the member still owes resolves onto the record they filed since,
+  // which is the address this sheet hands the form and gets back after
+  // the save. `travelRowFor` is where that rule lives and why.
   const row =
     rowId === undefined || !board
       ? undefined
-      : [...board.arrivals, ...board.departures].find(
-          (candidate) => candidate.id === rowId,
-        );
+      : travelRowFor(board, rowId);
 
   // The copy's own three answers — which press this is, whether a write is
   // in flight, and what failed — and they are declared above the guards
@@ -230,7 +241,7 @@ function TravelDetailDialog() {
   // An unscheduled row has no record to edit, so it opens the form on the
   // member and the direction instead — which is how that row ever gets a
   // time at all.
-  const editHref = row.id.startsWith("pending-")
+  const editHref = isOwedRow(row)
     ? `/trips/travel/form?id=${trip.id}&member=${row.memberId}&direction=${row.travelType}`
     : `/trips/travel/form?id=${trip.id}&travel=${row.id}`;
   // The clock, read on the same zone the board read it on: the own end's
@@ -530,7 +541,7 @@ function TravelDetailDialog() {
           `memberId` from anyone else, so showing this to a traveler
           would be a door onto a 403. An unscheduled row has nothing to
           copy, so it has no door either. */}
-      {(viewer?.isOrganizer ?? false) && !row.id.startsWith("pending-") ? (
+      {(viewer?.isOrganizer ?? false) && !isOwedRow(row) ? (
         <RuledBlock>
           <View className="gap-2">
             <Text className="font-body text-sm text-ink opacity-60">
@@ -556,15 +567,14 @@ function TravelDetailDialog() {
           somebody else, and this files somebody else's leg for you.
 
           It copies the leg's facts and only its facts — the times, the
-          places, the mode and the number — which is what the sentence
-          above the button commits to. The prose is left behind: `details`
-          is often about the other person's own trip ("Bags take twenty
-          minutes" is their landing and their bags), so carrying it would
-          put somebody else's sentence on your record.
+          places, the mode and the number. The prose is left behind:
+          `details` is often about the other person's own trip ("Bags take
+          twenty minutes" is their landing and their bags), so carrying it
+          would put somebody else's sentence on your record.
 
           Hidden on your own row, because copying a leg onto itself is a
           press with nothing behind it, and on a row the board files as
-          still owed. `pending-` is the library's own test for that — the
+          still owed. `isOwedRow` is the library's own test for that — the
           row a member with no record is given — but the board's answer is
           wider than the id: it gathers every row with no time among the
           owed ones, and a record can be that without being a `pending-`
@@ -572,8 +582,7 @@ function TravelDetailDialog() {
           the API's create requires the direction's own time (the schema
           refines on it), so the far end would go over as nothing and the
           end that decides the direction with it. The sentence above the
-          button promises times, places and a number, and a row holding
-          none of them has nothing for it to promise.
+          button names a leg, and such a row has none.
 
           The sentence carries the meaning, so the button carries nothing
           but its verb — the shape the Duplicate block above and the
@@ -593,14 +602,14 @@ function TravelDetailDialog() {
           Otherwise one press files the copy. */}
       {viewer &&
       viewer.id !== row.memberId &&
-      !row.id.startsWith("pending-") &&
+      !isOwedRow(row) &&
       row.time !== null ? (
         <RuledBlock>
           <View className="gap-2">
             <Text className="font-body text-sm text-ink opacity-60">
               {replacing
-                ? "Files the same times, places and number as your own travel, replacing the leg you filed for this direction."
-                : "Files the same times, places and number as your own travel."}
+                ? "Replaces the leg you already filed for this direction."
+                : "Files this member's leg onto your own travel."}
             </Text>
             {/* The question appears only once the button is armed, and it
                 is the loudest line here: the reason above is quiet ink,

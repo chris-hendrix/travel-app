@@ -313,8 +313,8 @@ export function Itinerary({
                         onPress={() =>
                           router.push(`/trips/events/new?id=${trip.id}`)
                         }
-                      />{" "}
-                      to get started.
+                      />
+                      .
                     </>
                   ) : (
                     <>
@@ -324,8 +324,8 @@ export function Itinerary({
                         onPress={() =>
                           router.push(`/trips/events/new?id=${trip.id}`)
                         }
-                      />{" "}
-                      to get started.
+                      />
+                      .
                     </>
                   )}
                 </Text>

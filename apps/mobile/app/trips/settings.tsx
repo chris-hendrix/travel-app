@@ -183,10 +183,6 @@ function TripSettingsScreen() {
             reason `disabled` in this system means "real, its input is not
             here yet": a push switch with no push behind it is neither.
             It comes back in ten lines, on the day push does. */}
-
-        <Text className="font-body text-sm text-ink">
-          Notifications reach this phone, and invitations by text.
-        </Text>
       </Section>
 
       <Section title="Privacy">
@@ -215,7 +211,7 @@ function TripSettingsScreen() {
       <Section title="Calendar">
         <Row
           label="Include in calendar"
-          description="Your subscription follows changes to this trip"
+          description="Events you add or move show up in your calendar"
         >
           <ChipToggle
             label={settings.calendarIncluded ? "On" : "Off"}
