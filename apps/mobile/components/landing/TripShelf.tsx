@@ -15,11 +15,11 @@ import type { DemoTripCard } from "@/lib/demo";
  * the first attempt and it made exactly that mistake.
  *
  * The wording is the page's own register — plain, concrete, no pitch: what
- * the tiles are (real trips) and what you do with them (look through them).
- * "look through" is the honest verb for what pressing one does, since the
- * demo lets a reader read a trip rather than edit it.
+ * the tiles are (trips) and what you do with them (open them). "Real" and
+ * "look through" were both doing work the tiles already do: the trips are
+ * the product's own demo trips, and pressing one opens it.
  */
-const SHELF_TITLE = "Real trips to look through";
+const SHELF_TITLE = "Trips to open";
 
 /**
  * The shelf: three real demo trips, the first sharing the mechanism band.
@@ -124,16 +124,9 @@ export function TripShelf({
                 <Text className="font-body text-base leading-relaxed text-ink">
                   They open the invite in the text and join.
                 </Text>
-                {/* The beat, not a third step. `pt-2` on top of the
-                    `Section`'s own gap is what separates a block closing
-                    from a thing still to do — and it is inside the
-                    `Section` rather than a direct child of the `Column`,
-                    which is the boundary the column-padding check guards. */}
-                <View className="pt-2">
-                  <Text className="font-body text-base leading-relaxed text-ink">
-                    That's it.
-                  </Text>
-                </View>
+                {/* The block closes with the last step. It used to carry
+                    a beat under it ("That's it."), which said nothing the
+                    two sentences above had not. */}
               </Section>
             </View>
             {/* The card's own width, and nothing of this row's. The

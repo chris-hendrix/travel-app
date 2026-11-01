@@ -172,8 +172,7 @@ export function validateExpense(input: ExpenseInput): ExpenseErrors {
     if (input.scope === "custom") {
       errors.participants = "Nobody is on the split.";
     } else {
-      errors.scope =
-        "Set Split with to Choose people, then tick who it was between.";
+      errors.scope = "Choose who it was between.";
     }
   }
   if (!DAY.test(input.day)) errors.day = "Pick the day.";

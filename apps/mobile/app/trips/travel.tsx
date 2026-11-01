@@ -86,7 +86,7 @@ function TripTravelDialog() {
     return (
       <FullscreenDialog title="Travel" dismissHref="/trips">
         <Text className="font-body text-base text-ink">
-          No trip to show. Start one from the trips screen.
+          No trip to show.
         </Text>
       </FullscreenDialog>
     );

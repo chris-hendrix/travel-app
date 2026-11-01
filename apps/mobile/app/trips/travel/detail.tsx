@@ -556,8 +556,7 @@ function TravelDetailDialog() {
           somebody else, and this files somebody else's leg for you.
 
           It copies the leg's facts and only its facts — the times, the
-          places, the mode and the number — which is what the sentence
-          above the button commits to. The prose is left behind: `details`
+          places, the mode and the number. The prose is left behind: `details`
           is often about the other person's own trip ("Bags take twenty
           minutes" is their landing and their bags), so carrying it would
           put somebody else's sentence on your record.
@@ -572,8 +571,7 @@ function TravelDetailDialog() {
           the API's create requires the direction's own time (the schema
           refines on it), so the far end would go over as nothing and the
           end that decides the direction with it. The sentence above the
-          button promises times, places and a number, and a row holding
-          none of them has nothing for it to promise.
+          button names a leg, and such a row has none.
 
           The sentence carries the meaning, so the button carries nothing
           but its verb — the shape the Duplicate block above and the
@@ -599,8 +597,8 @@ function TravelDetailDialog() {
           <View className="gap-2">
             <Text className="font-body text-sm text-ink opacity-60">
               {replacing
-                ? "Files the same times, places and number as your own travel, replacing the leg you filed for this direction."
-                : "Files the same times, places and number as your own travel."}
+                ? "Replaces the leg you already filed for this direction."
+                : "Files this member's leg onto your own travel."}
             </Text>
             {/* The question appears only once the button is armed, and it
                 is the loudest line here: the reason above is quiet ink,
