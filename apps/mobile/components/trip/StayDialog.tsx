@@ -44,10 +44,9 @@ import { pickPlace } from "@/lib/place-pick";
  */
 // Hoisted, not written inline in the JSX below: `Stack.Screen` re-applies
 // its options whenever the object's identity changes (`expo-router`'s
-// `Screen` effect depends on `options`), so an inline literal means a
-// `navigation.setOptions` call — a navigator state update, and with it a
-// re-render of the stack — on every render of this dialog, which is every
-// keystroke.
+// `Screen` effect depends on `options`), so an inline literal asks the
+// navigator to re-apply them on every render of this dialog — and this
+// dialog renders on every keystroke.
 const MODAL_SCREEN_OPTIONS = { presentation: "modal" } as const;
 
 export function StayDialog({

@@ -116,6 +116,9 @@ export function TripShelf({
         <Column roomy>
           <View className="flex-col gap-10 lg:flex-row lg:items-center lg:gap-6">
             <View className="min-w-0 flex-1">
+              {/* The block closes with the last step. It used to carry a beat
+                  under it ("That's it."), which said nothing the two sentences
+                  above had not. */}
               <Section title="How it works" rule={false}>
                 <Text className="font-body text-base leading-relaxed text-ink">
                   You name the trip, pick the dates and the place, and invite
@@ -124,9 +127,6 @@ export function TripShelf({
                 <Text className="font-body text-base leading-relaxed text-ink">
                   They open the invite in the text and join.
                 </Text>
-                {/* The block closes with the last step. It used to carry
-                    a beat under it ("That's it."), which said nothing the
-                    two sentences above had not. */}
               </Section>
             </View>
             {/* The card's own width, and nothing of this row's. The
