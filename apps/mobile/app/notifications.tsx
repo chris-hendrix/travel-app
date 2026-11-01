@@ -58,11 +58,11 @@ export default function Notifications() {
 
   return (
     <FullscreenDialog
-      title="Loading notifications"
+      title="Notifications"
       // Nothing to mark until there is something unread. The bar belongs to
-      // the scaffold and does not wait for a query, so the action does:
-      // measured, Mark all read sat live over a list still saying
-      // "Loading notifications".
+      // the scaffold and does not wait for a query, so the action does: it
+      // was live over a list that was still loading, and pressed on
+      // nothing.
       primaryTitle={unreadCount > 0 ? "Mark all read" : undefined}
       onPrimary={unreadCount > 0 ? () => void markAllRead() : undefined}
     >
