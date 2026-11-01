@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { MockTravel } from "@/mocks/travel";
-import { anyTravelOwed, parsePendingRowId, pendingRowId, travelBoard, travelRowFor } from "@/lib/travelBoard";
+import {
+  anyTravelOwed,
+  isOwedRow,
+  parsePendingRowId,
+  pendingRowId,
+  travelBoard,
+  travelRowFor,
+} from "@/lib/travelBoard";
 
 /**
  * A record in the API's own shape: both ends exist as columns and the
@@ -249,6 +256,34 @@ describe("travelRowFor", () => {
 
     expect(travelRowFor(board, pendingRowId("arrival", "gone"))).toBeUndefined();
     expect(travelRowFor(board, "deleted-record-id")).toBeUndefined();
+  });
+});
+
+describe("isOwedRow", () => {
+  const ana = { id: "9d1c7a54-1f2e-4c3b", name: "Ana" };
+
+  it("is true for the row a member with no record is given", () => {
+    const board = travelBoard([], null, [ana]);
+    expect(board.arrivals.every(isOwedRow)).toBe(true);
+  });
+
+  it("is false for a filed row, whatever its direction", () => {
+    const board = travelBoard(
+      [
+        record({ id: "ana-arrival", memberId: ana.id, time: "2026-09-18T15:40:00" }),
+        record({
+          id: "ana-departure",
+          memberId: ana.id,
+          memberName: "Ana",
+          travelType: "departure",
+          time: "2026-09-25T11:00:00",
+        }),
+      ],
+      null,
+      [ana],
+    );
+
+    expect([...board.arrivals, ...board.departures].some(isOwedRow)).toBe(false);
   });
 });
 

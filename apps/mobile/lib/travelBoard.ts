@@ -85,6 +85,28 @@ export function parsePendingRowId(
 }
 
 /**
+ * Whether this board row is one nobody has filed yet.
+ *
+ * The third question about the same format, beside the writer and the
+ * reader: `pendingRowId` builds the id, `parsePendingRowId` reads it back,
+ * and this asks whether a row carries one. Three call sites in the record
+ * sheet need it — the two action blocks that require a record behind the
+ * row, and the edit door that falls back to the member and the direction
+ * instead of a record id — and they all spelled it `row.id.startsWith(
+ * "pending-")` while the format had no owner.
+ *
+ * A row rather than an id, because that is what every caller has, and
+ * because the question is about the row's kind rather than about a
+ * string: `TravelRow.time === null` is the board's own test for owed, and
+ * it is wider than this one (a record can be timeless without being
+ * `pending-`), so a caller asking "is this row owed" should say which of
+ * the two it means.
+ */
+export function isOwedRow(row: TravelRow): boolean {
+  return parsePendingRowId(row.id) !== null;
+}
+
+/**
  * The row an address names, read forward onto what that member holds now.
  *
  * A board row's id is stable while it is a record's own, and **not**

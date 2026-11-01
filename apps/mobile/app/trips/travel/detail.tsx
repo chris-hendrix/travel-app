@@ -24,7 +24,7 @@ import {
   whereLabel,
   type TravelSide,
 } from "@/lib/transportMode";
-import { travelBoard, travelRowFor } from "@/lib/travelBoard";
+import { travelBoard, isOwedRow, travelRowFor } from "@/lib/travelBoard";
 import { travelForMemberDirection } from "@/lib/newTravel";
 import { copyTravelFor } from "@/lib/travelCopy";
 import { useTravel } from "@/lib/travelStore";
@@ -241,7 +241,7 @@ function TravelDetailDialog() {
   // An unscheduled row has no record to edit, so it opens the form on the
   // member and the direction instead — which is how that row ever gets a
   // time at all.
-  const editHref = row.id.startsWith("pending-")
+  const editHref = isOwedRow(row)
     ? `/trips/travel/form?id=${trip.id}&member=${row.memberId}&direction=${row.travelType}`
     : `/trips/travel/form?id=${trip.id}&travel=${row.id}`;
   // The clock, read on the same zone the board read it on: the own end's
@@ -541,7 +541,7 @@ function TravelDetailDialog() {
           `memberId` from anyone else, so showing this to a traveler
           would be a door onto a 403. An unscheduled row has nothing to
           copy, so it has no door either. */}
-      {(viewer?.isOrganizer ?? false) && !row.id.startsWith("pending-") ? (
+      {(viewer?.isOrganizer ?? false) && !isOwedRow(row) ? (
         <RuledBlock>
           <View className="gap-2">
             <Text className="font-body text-sm text-ink opacity-60">
@@ -567,14 +567,14 @@ function TravelDetailDialog() {
           somebody else, and this files somebody else's leg for you.
 
           It copies the leg's facts and only its facts — the times, the
-          places, the mode and the number. The prose is left behind: `details`
-          is often about the other person's own trip ("Bags take twenty
-          minutes" is their landing and their bags), so carrying it would
-          put somebody else's sentence on your record.
+          places, the mode and the number. The prose is left behind:
+          `details` is often about the other person's own trip ("Bags take
+          twenty minutes" is their landing and their bags), so carrying it
+          would put somebody else's sentence on your record.
 
           Hidden on your own row, because copying a leg onto itself is a
           press with nothing behind it, and on a row the board files as
-          still owed. `pending-` is the library's own test for that — the
+          still owed. `isOwedRow` is the library's own test for that — the
           row a member with no record is given — but the board's answer is
           wider than the id: it gathers every row with no time among the
           owed ones, and a record can be that without being a `pending-`
@@ -602,7 +602,7 @@ function TravelDetailDialog() {
           Otherwise one press files the copy. */}
       {viewer &&
       viewer.id !== row.memberId &&
-      !row.id.startsWith("pending-") &&
+      !isOwedRow(row) &&
       row.time !== null ? (
         <RuledBlock>
           <View className="gap-2">
