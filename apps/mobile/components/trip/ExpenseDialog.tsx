@@ -217,6 +217,14 @@ function ShareRow({ label, amount }: { label: string; amount: number | null }) {
   );
 }
 
+// Hoisted, not written inline in the JSX below: `Stack.Screen` re-applies
+// its options whenever the object's identity changes (`expo-router`'s
+// `Screen` effect depends on `options`), so an inline literal means a
+// `navigation.setOptions` call — a navigator state update, and with it a
+// re-render of the stack — on every render of this dialog, which is every
+// keystroke.
+const MODAL_SCREEN_OPTIONS = { presentation: "modal" } as const;
+
 export function ExpenseDialog({
   title,
   primaryTitle,
@@ -472,7 +480,7 @@ export function ExpenseDialog({
       onDanger={onDanger}
       dismissHref={dismissHref}
     >
-      <Stack.Screen options={{ presentation: "modal" }} />
+      <Stack.Screen options={MODAL_SCREEN_OPTIONS} />
       {serverError ? <InlineError message={serverError} /> : null}
 
       <TextField

@@ -20,6 +20,14 @@ import {
 import { pickPlace } from "@/lib/place-pick";
 import { tripCreatePlaceFields } from "@/lib/queries/trips";
 
+// Hoisted, not written inline in the JSX below: `Stack.Screen` re-applies
+// its options whenever the object's identity changes (`expo-router`'s
+// `Screen` effect depends on `options`), so an inline literal means a
+// `navigation.setOptions` call — a navigator state update, and with it a
+// re-render of the stack — on every render of this form, which is every
+// keystroke.
+const MODAL_SCREEN_OPTIONS = { presentation: "modal" } as const;
+
 export default function NewTrip() {
   const { addTrip } = useTrips();
   const router = useRouter();
@@ -150,7 +158,7 @@ export default function NewTrip() {
       {/* Modals are routes, presented modally: iOS slides it up and
           allows a swipe-down dismiss, Android maps its hardware back
           to the same dismissal. */}
-      <Stack.Screen options={{ presentation: "modal" }} />
+      <Stack.Screen options={MODAL_SCREEN_OPTIONS} />
       <TextField
         label="Trip name"
         value={title}

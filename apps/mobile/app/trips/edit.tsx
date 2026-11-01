@@ -49,6 +49,14 @@ import { useDismiss } from "@/hooks/useDismiss";
  * thumbnail itself opens the system library, Remove drops back to the
  * default seed.
  */
+// Hoisted, not written inline in the JSX below: `Stack.Screen` re-applies
+// its options whenever the object's identity changes (`expo-router`'s
+// `Screen` effect depends on `options`), so an inline literal means a
+// `navigation.setOptions` call — a navigator state update, and with it a
+// re-render of the stack — on every render of this form, which is every
+// keystroke.
+const MODAL_SCREEN_OPTIONS = { presentation: "modal" } as const;
+
 export default function EditTrip() {
   return (
     <TripGate label="Loading trip details">
@@ -304,7 +312,7 @@ function EditTripScreen() {
       pending={busy}
       dismissHref={`/trips/detail?id=${trip.id}`}
     >
-      <Stack.Screen options={{ presentation: "modal" }} />
+      <Stack.Screen options={MODAL_SCREEN_OPTIONS} />
 
       <TextField
         label="Trip name"
