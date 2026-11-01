@@ -373,7 +373,7 @@ function ProfileForm({ profile }: { profile: Profile }) {
         <View>
           <Text className="font-body-bold text-sm text-ink">Admin</Text>
           <Text className="mt-2 font-body text-sm text-ink">
-            Search every user, and act on one.
+            Search users, ban or impersonate one.
           </Text>
           <View className="mt-3">
             <Button
@@ -557,7 +557,7 @@ function ProfileForm({ profile }: { profile: Profile }) {
             <Text className="font-body text-sm text-ink">
               {confirming === "stop"
                 ? "Your current link stops working, and every calendar you added it to will need removing."
-                : "This will invalidate your current calendar link. You will need to re-subscribe in your calendar app with the new link."}
+                : "Your current link stops working. Re-subscribe in your calendar app with the new one."}
             </Text>
             <View className="gap-3">
               <Button
@@ -623,8 +623,7 @@ function ProfileForm({ profile }: { profile: Profile }) {
           // return the RSVP control uses.
           <View className="mt-3 gap-2">
             <Text className="font-body text-sm text-ink">
-              Both of these end the link your calendars are reading, so the
-              calendar you subscribed from stops updating.
+              Both end the link your calendars read.
             </Text>
             <View
               // The row is inert while a write is in flight, and the guard in

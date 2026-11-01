@@ -218,20 +218,6 @@ export default function NewTrip() {
         <Text className="font-body text-sm text-ink">{failure}</Text>
       ) : null}
 
-      <View className="gap-1">
-        <Text className="font-body-bold text-sm text-ink">
-          What happens next
-        </Text>
-        {/* Where this leaves you, said once. Creation replaces to the new
-            trip's own detail (`router.replace` above), so the reader
-            arrives inside the trip they just made — and that empty state
-            is the one offering the stay and the event. The sentence used
-            to promise the Upcoming list, which is where nobody lands. */}
-        <Text className="font-body text-sm text-ink">
-          You'll be taken to your empty trip, where you can add stays,
-          events, and friends.
-        </Text>
-      </View>
     </FullscreenDialog>
   );
 }

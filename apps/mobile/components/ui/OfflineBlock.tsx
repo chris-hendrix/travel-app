@@ -10,7 +10,7 @@ import { RuledBlock } from "@/components/ui/RuledBlock";
  * second header, and this system has one header already.
  */
 export function OfflineBlock({
-  message = "You're offline. Nothing here could be fetched, and nothing you do here will send.",
+  message = "You're offline. Nothing here can load or save.",
   retryTitle = "Try again",
   onRetry,
 }: {

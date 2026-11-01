@@ -175,8 +175,7 @@ function TripsContent() {
             No trips yet
           </Text>
           <Text className="font-body text-body text-ink">
-            Start a trip, add the dates, and invite everyone. Everyone
-            sees the same itinerary as it comes together.
+            Start a trip, add the dates, and invite everyone.
           </Text>
         </View>
           </Column>

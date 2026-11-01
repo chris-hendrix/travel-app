@@ -747,8 +747,7 @@ function AdminImpersonateAction({
         You use the app as this user until you stop.
       </Text>
       <Text className="font-body text-sm text-ink opacity-60">
-        We text a code to your number. That is the second factor for
-        impersonation.
+        We text a code to your number.
       </Text>
       <View
         pointerEvents={sendState === "sending" ? "none" : "auto"}
