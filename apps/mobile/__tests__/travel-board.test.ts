@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MockTravel } from "@/mocks/travel";
-import { anyTravelOwed, travelBoard } from "@/lib/travelBoard";
+import { anyTravelOwed, parsePendingRowId, pendingRowId, travelBoard, travelRowFor } from "@/lib/travelBoard";
 
 /**
  * A record in the API's own shape: both ends exist as columns and the
@@ -192,6 +192,80 @@ describe("travelBoard", () => {
       "flight",
       null,
     ]);
+  });
+});
+
+describe("travelRowFor", () => {
+  const ana = { id: "9d1c7a54-1f2e-4c3b-8a5e-0b7c1d2e3f40", name: "Ana" };
+
+  it("matches a filed row by the record's own id", () => {
+    const board = travelBoard(
+      [record({ id: "ana-arrival", memberId: ana.id, time: "2026-09-18T15:40:00" })],
+      null,
+      [ana],
+    );
+
+    expect(travelRowFor(board, "ana-arrival")?.id).toBe("ana-arrival");
+  });
+
+  it("reads an owed id forward onto the record filed since", () => {
+    // The bug this helper exists for: an owed row's sheet opens the form,
+    // the save files a record, and the sheet comes back to an address
+    // naming the row that no longer exists. The id is a reference — a
+    // member and a direction — so it resolves onto what they hold now.
+    const owed = travelBoard([], null, [ana]);
+    expect(travelRowFor(owed, pendingRowId("arrival", ana.id))?.time).toBeNull();
+
+    const filed = travelBoard(
+      [record({ id: "ana-arrival", memberId: ana.id, time: "2026-09-18T15:40:00" })],
+      null,
+      [ana],
+    );
+
+    const row = travelRowFor(filed, pendingRowId("arrival", ana.id));
+    expect(row?.id).toBe("ana-arrival");
+    // A filed row, not the owed one it replaced: a time and a day, which
+    // a `pending-` row has neither of.
+    expect(row?.time).not.toBeNull();
+    expect(row?.date).not.toBeNull();
+  });
+
+  it("resolves an owed id onto the right direction only", () => {
+    // Ana filed her arrival and still owes the departure, so the owed
+    // departure's address must not land on the arrival beside it.
+    const board = travelBoard(
+      [record({ id: "ana-arrival", memberId: ana.id, time: "2026-09-18T15:40:00" })],
+      null,
+      [ana],
+    );
+
+    expect(
+      travelRowFor(board, pendingRowId("departure", ana.id))?.travelType,
+    ).toBe("departure");
+  });
+
+  it("has no row for an id that names nobody on the board", () => {
+    const board = travelBoard([], null, [ana]);
+
+    expect(travelRowFor(board, pendingRowId("arrival", "gone"))).toBeUndefined();
+    expect(travelRowFor(board, "deleted-record-id")).toBeUndefined();
+  });
+});
+
+describe("parsePendingRowId", () => {
+  it("keeps a member id that carries dashes of its own", () => {
+    // Member ids are uuids, so the prefix is matched rather than split:
+    // everything after the direction is the member, dashes and all.
+    expect(parsePendingRowId("pending-arrival-9d1c7a54-1f2e-4c3b")).toEqual({
+      direction: "arrival",
+      memberId: "9d1c7a54-1f2e-4c3b",
+    });
+  });
+
+  it("is null for a record's own id", () => {
+    expect(parsePendingRowId("9d1c7a54-1f2e-4c3b")).toBeNull();
+    expect(parsePendingRowId("pending-arrival-")).toBeNull();
+    expect(parsePendingRowId("pending-sideways-x")).toBeNull();
   });
 });
 

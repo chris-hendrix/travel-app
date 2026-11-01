@@ -249,6 +249,69 @@ test.describe("Travel Journey", () => {
       ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
     });
 
+    await test.step("the direction still owed files through its own sheet, and lands on the record", async () => {
+      // The regression this step is here for, and it is the first-timer's
+      // own path through this screen. The board lists the rows a member
+      // still owes, and an owed row's sheet is a real door onto the form
+      // (`app/trips/travel/detail.tsx`: `Edit travel` opens it on the
+      // member and the direction). Saving from there came back to the
+      // sheet's own address — which named the owed row, and an owed row
+      // stops existing the moment the member files it. So the save landed
+      // on "That travel is not on this trip any more" over the record just
+      // written: a dead end after a successful write, and the one screen
+      // filing your own travel for the first time could reach. The sheet
+      // now reads an owed id forward onto the record that replaced it
+      // (`travelRowFor`, unit-tested in `__tests__/travel-board.test.ts`),
+      // which is the half a unit test cannot reach: what this step adds is
+      // that the *door* still leads there.
+      await page.getByRole("button", { name: "Close" }).click();
+      await expect(page).toHaveURL(/\/trips\/travel\?id=/, {
+        timeout: NAVIGATION_TIMEOUT,
+      });
+
+      // The departure is still owed, and the arrival filed above is a
+      // different row, so the board's own words are what tells them apart.
+      await page
+        .getByRole("button")
+        .filter({ hasText: memberName })
+        .filter({ hasText: "Not shared yet" })
+        .click();
+      await expect(page).toHaveURL(/\/trips\/travel\/detail/);
+
+      await page.getByText("Edit travel", { exact: true }).click();
+      // The form opens on the direction that was tapped (`direction=`), so
+      // the departure's own end is the one asking for a time — the arrival
+      // half is the optional one and says so instead.
+      await expect(
+        page.getByRole("radio", { name: dayCellLabel(startDate) }),
+      ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
+      await page.getByRole("radio", { name: dayCellLabel(startDate) }).click();
+      await page.getByRole("button", { name: "Pick a time" }).click();
+      await page.getByRole("radio", { name: "10:00 AM" }).click();
+      // A departure's own end leaves rather than lands, so the where wears
+      // that end's word from the mode's table (`lib/transportMode.ts`).
+      const whereInput = page.getByRole("textbox", { name: "Leaves from" });
+      await whereInput.click();
+      await whereInput.pressSequentially(where);
+      // The verb is the member's, not the screen's: they have filed the
+      // arrival, so this save updates rather than adds.
+      await page.getByRole("button", { name: "Save changes" }).last().click();
+
+      // Back on the sheet, reading the record: the gone copy is not there,
+      // and the departure's own where is — the press only a filed leg
+      // offers, and the one thing on this screen the board behind it has
+      // no copy of.
+      await expect(page).toHaveURL(/\/trips\/travel\/detail/, {
+        timeout: NAVIGATION_TIMEOUT,
+      });
+      await expect(
+        page.getByText("That travel is not on this trip any more."),
+      ).toHaveCount(0);
+      await expect(
+        page.getByRole("button", { name: `Open ${where} in Google Maps` }),
+      ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
+    });
+
     await test.step("the server holds exactly one arrival for the member", async () => {
       await expect
         .poll(

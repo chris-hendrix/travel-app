@@ -24,7 +24,7 @@ import {
   whereLabel,
   type TravelSide,
 } from "@/lib/transportMode";
-import { travelBoard } from "@/lib/travelBoard";
+import { travelBoard, travelRowFor } from "@/lib/travelBoard";
 import { travelForMemberDirection } from "@/lib/newTravel";
 import { copyTravelFor } from "@/lib/travelCopy";
 import { useTravel } from "@/lib/travelStore";
@@ -110,6 +110,15 @@ const DIRECTION_WORD = {
  * row's *far end* is the one fact read the other way, off the record
  * itself through `travelById`: the board's row carries the half the board
  * shows, and the other half is only on the `MockTravel` the store holds.
+ *
+ * The id is read through `travelRowFor` rather than matched, because the
+ * second of those two shapes is a reference rather than a key: an owed
+ * id names a member and a direction, and it stops existing the moment
+ * that member files. This sheet is where the owed row's own Edit door
+ * lands (`editHref` below), so the save comes back to an address whose
+ * row is gone — and answering "that travel is not on this trip any more"
+ * over the record just written was the one screen that filing your own
+ * travel for the first time could reach.
  */
 export default function TravelDetail() {
   return (
@@ -163,12 +172,14 @@ function TravelDetailDialog() {
   // `records` is a fresh array out of the store on every render, so a
   // `useMemo` keyed on it re-ran anyway while appearing to cache.
   const board = trip ? travelBoard(records, timeZone, going) : null;
+  // The row is read forward, not matched by id alone: an address naming a
+  // row the member still owes resolves onto the record they filed since,
+  // which is the address this sheet hands the form and gets back after
+  // the save. `travelRowFor` is where that rule lives and why.
   const row =
     rowId === undefined || !board
       ? undefined
-      : [...board.arrivals, ...board.departures].find(
-          (candidate) => candidate.id === rowId,
-        );
+      : travelRowFor(board, rowId);
 
   // The copy's own three answers — which press this is, whether a write is
   // in flight, and what failed — and they are declared above the guards
