@@ -76,6 +76,66 @@ export function conditionWord(code: number): string {
   return "Unknown";
 }
 
+/**
+ * The sky in two buckets: what a fair band wears versus a foul one.
+ *
+ * `conditionHue` (by WMO code) and `conditionHueForWord` (by the word
+ * `conditionWord` already printed) agree with each other — the word form
+ * exists because the list rows only carry the word, not the code.
+ */
+export type ConditionHue = "fair" | "foul";
+
+/**
+ * House twelve-hour clock: `${h}:${mm} AM/PM`, midnight `12 AM`, noon
+ * `12 PM`, on-the-hour drops `:00` (`9 PM`).
+ *
+ * Accepts an ISO datetime (`2026-11-08T21:00`) or a bare `HH:MM`
+ * (`06:12`, the shape the API's sunrise/sunset arrive in) — the time is
+ * read as-is, never converted, because weather always runs on the
+ * destination's clock. An unreadable input reads back unchanged.
+ */
+export function formatHour12(input: string): string {
+  const time = input.includes("T") ? (input.split("T")[1] ?? "") : input;
+  const [hourPart, minutePart] = time.slice(0, 5).split(":");
+  const hours = Number(hourPart);
+  const minutes = Number(minutePart ?? "0");
+  if (!Number.isInteger(hours) || !Number.isInteger(minutes)) return input;
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return input;
+  const period = hours < 12 ? "AM" : "PM";
+  const hour = hours % 12 === 0 ? 12 : hours % 12;
+  if (minutes === 0) return `${hour} ${period}`;
+  return `${hour}:${String(minutes).padStart(2, "0")} ${period}`;
+}
+
+/**
+ * The WMO code as a band hue: the clear-sky buckets (Sunny, Mostly
+ * Sunny, Partly Cloudy) read `fair` and wear the warm band; fog,
+ * drizzle, rain, snow, storm, overcast, and unknown codes read `foul`
+ * and wear the cool one. The word still classifies — the hue only
+ * reinforces — per the palette's label-carries-it rule.
+ */
+export function conditionHue(code: number): ConditionHue {
+  if (code === 0 || code === 1 || code === 2) return "fair";
+  return "foul";
+}
+
+/**
+ * `conditionHue` by the printed word, for rows that carry the word and
+ * not the code. Fair is exactly the words the fair codes print as
+ * (`Clear` included for callers that name code 0 that way); every other
+ * word — including `Unknown` — is foul.
+ */
+export function conditionHueForWord(word: string): ConditionHue {
+  if (
+    word === "Clear" ||
+    word === "Sunny" ||
+    word === "Mostly Sunny" ||
+    word === "Partly Cloudy"
+  )
+    return "fair";
+  return "foul";
+}
+
 const COMPASS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"] as const;
 
 /** Degrees (0–360) as an eight-point compass word. */

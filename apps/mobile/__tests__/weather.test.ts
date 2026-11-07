@@ -7,10 +7,13 @@ import { formatDay } from "@/lib/dateRange";
 import {
   celsiusToFahrenheit,
   compassWord,
+  conditionHue,
+  conditionHueForWord,
   conditionWord,
   dayStep,
   fahrenheitToCelsius,
   forecastUpdatedWording,
+  formatHour12,
   formatTemp,
   formatWind,
   hourlySampleForDay,
@@ -183,6 +186,75 @@ describe("conditionWord", () => {
   it("falls back for an unknown code", () => {
     expect(conditionWord(999)).toBe("Unknown");
     expect(conditionWord(4)).toBe("Unknown");
+  });
+});
+
+describe("formatHour12", () => {
+  it("reads midnight as 12 AM", () => {
+    expect(formatHour12("00:00")).toBe("12 AM");
+    expect(formatHour12("2026-11-08T00:00")).toBe("12 AM");
+  });
+
+  it("reads noon as 12 PM", () => {
+    expect(formatHour12("12:00")).toBe("12 PM");
+    expect(formatHour12("2026-11-08T12:00")).toBe("12 PM");
+  });
+
+  it("drops :00 on the hour", () => {
+    expect(formatHour12("2026-11-08T21:00")).toBe("9 PM");
+    expect(formatHour12("09:00")).toBe("9 AM");
+  });
+
+  it("keeps the minutes otherwise", () => {
+    expect(formatHour12("06:12")).toBe("6:12 AM");
+    expect(formatHour12("2026-11-08T18:30")).toBe("6:30 PM");
+  });
+
+  it("reads ISO datetimes and bare times alike", () => {
+    expect(formatHour12("2026-11-08T06:00")).toBe("6 AM");
+    expect(formatHour12("19:48")).toBe("7:48 PM");
+  });
+});
+
+describe("conditionHue", () => {
+  it.each([0, 1, 2])("reads code %i as fair", (code) => {
+    expect(conditionHue(code)).toBe("fair");
+  });
+
+  it.each([3, 45, 48, 51, 61, 71, 80, 85, 95, 99])(
+    "reads code %i as foul",
+    (code) => {
+      expect(conditionHue(code)).toBe("foul");
+    },
+  );
+
+  it("reads unknown codes as foul", () => {
+    expect(conditionHue(999)).toBe("foul");
+    expect(conditionHue(4)).toBe("foul");
+  });
+});
+
+describe("conditionHueForWord", () => {
+  it.each(["Clear", "Sunny", "Mostly Sunny", "Partly Cloudy"])(
+    "reads %s as fair",
+    (word) => {
+      expect(conditionHueForWord(word)).toBe("fair");
+    },
+  );
+
+  it.each(["Overcast", "Fog", "Drizzle", "Rain", "Snow", "Storm", "Unknown"])(
+    "reads %s as foul",
+    (word) => {
+      expect(conditionHueForWord(word)).toBe("foul");
+    },
+  );
+
+  it("agrees with conditionHue on every known code", () => {
+    for (const code of [0, 1, 2, 3, 45, 51, 61, 71, 80, 95]) {
+      expect(conditionHueForWord(conditionWord(code))).toBe(
+        conditionHue(code),
+      );
+    }
   });
 });
 

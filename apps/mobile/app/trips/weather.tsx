@@ -3,6 +3,7 @@ import { Pressable, Text, View } from "react-native";
 
 import NotFound from "@/app/+not-found";
 import { TripGate } from "@/components/trip/TripGate";
+import { Badge } from "@/components/ui/Badge";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { InlineError } from "@/components/ui/InlineError";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
@@ -14,6 +15,7 @@ import { useTripWeather } from "@/lib/queries/weather";
 import { todayIn } from "@/lib/timezone";
 import { useTrip } from "@/lib/tripsStore";
 import {
+  conditionHueForWord,
   forecastUpdatedWording,
   formatTemp,
   prepareWeatherDays,
@@ -137,13 +139,30 @@ function WeatherList({
               )
             }
             className={motion.rowOnGravel}
-            accessibilityLabel={`${row.label}, ${row.condition}`}
+            accessibilityLabel={`${row.label}, ${row.condition}, ${formatTemp(row.high, unit)}/${formatTemp(row.low, unit)}, ${row.precipitationProbability}% chance of rain`}
           >
-            <View className="gap-1 py-3">
-              <Text className="font-body text-base text-ink">
-                {row.label} · {row.condition} · {formatTemp(row.high, unit)}/
-                {formatTemp(row.low, unit)} · {row.precipitationProbability}%
-              </Text>
+            <View className="flex-row items-center justify-between gap-4 py-3">
+              <View className="gap-1">
+                <Text className="font-body text-base text-ink">
+                  {row.label}
+                </Text>
+                <View className="self-start">
+                  <Badge
+                    variant="category"
+                    size="sm"
+                    hue={conditionHueForWord(row.condition)}
+                    label={row.condition}
+                  />
+                </View>
+              </View>
+              <View className="items-end gap-1">
+                <Text className="font-body text-base text-ink">
+                  {formatTemp(row.high, unit)}/{formatTemp(row.low, unit)}
+                </Text>
+                <Text className="font-body text-sm text-ink opacity-60">
+                  {row.precipitationProbability}%
+                </Text>
+              </View>
             </View>
           </Pressable>
         ))}

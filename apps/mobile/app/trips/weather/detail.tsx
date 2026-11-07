@@ -3,6 +3,7 @@ import { Text, View } from "react-native";
 
 import NotFound from "@/app/+not-found";
 import { TripGate } from "@/components/trip/TripGate";
+import { Badge } from "@/components/ui/Badge";
 import { Fact } from "@/components/ui/Fact";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { InlineError } from "@/components/ui/InlineError";
@@ -19,8 +20,10 @@ import { todayIn } from "@/lib/timezone";
 import { useTrip } from "@/lib/tripsStore";
 import {
   compassWord,
+  conditionHue,
   conditionWord,
   dayStep,
+  formatHour12,
   formatTemp,
   formatWind,
   hourlySampleForDay,
@@ -218,15 +221,19 @@ function WeatherDayDetail({
       </View>
 
       {/* The hero: the day's high, pinned — never a mid temp — with the
-          condition word under it. The numeral is the stimulant; no band,
-          no color, nothing classifies the sky. */}
-      <View className="items-center gap-1">
+          condition chip under it. The numeral is the stimulant; the chip
+          carries the theme (warm fair band, cool foul one), and its word
+          still classifies the sky. */}
+      <View className="items-center gap-2">
         <Text className="font-display-extrabold text-display-lg text-ink">
           {formatTemp(forecast.temperatureMax, unit)}
         </Text>
-        <Text className="font-body text-base text-ink">
-          {conditionWord(forecast.weatherCode)}
-        </Text>
+        <Badge
+          variant="category"
+          size="md"
+          hue={conditionHue(forecast.weatherCode)}
+          label={conditionWord(forecast.weatherCode)}
+        />
       </View>
 
       <DailyFacts
@@ -244,28 +251,39 @@ function WeatherDayDetail({
       />
 
       {/* The day's profile at six destination-clock hours — a profile,
-          not a log. Every field the API carries per hour, one compact
-          row each, in `text-sm` so all eight read at a phone's 390px. */}
+          not a log. One line each: the 12-hour time and the condition
+          chip on the left, the precip chance (quiet) and the temp —
+          rightest — on the right. Humidity, dew, wind, and UV live in
+          the daily facts above, not per hour. */}
       {sample.length > 0 ? (
         <RuledBlock title="Hourly">
           <RuledRows>
             {sample.map((row) => (
-              <Text
+              <View
                 key={row.time}
-                className="py-2 font-body text-sm text-ink"
-                accessibilityLabel={`${row.time.slice(11, 16)}, ${conditionWord(row.weatherCode)}`}
+                className="flex-row items-center justify-between gap-4 py-2"
+                accessibilityLabel={`${formatHour12(row.time)}, ${conditionWord(row.weatherCode)}, ${formatTemp(row.temperature, unit)}, ${row.precipitationProbability}% chance of rain`}
               >
-                {[
-                  row.time.slice(11, 16),
-                  conditionWord(row.weatherCode),
-                  formatTemp(row.temperature, unit),
-                  formatWind(row.windSpeed, unit),
-                  `${row.humidity}%`,
-                  formatTemp(row.dewPoint, unit),
-                  `${row.precipitationProbability}%`,
-                  `UV ${row.uvIndex}`,
-                ].join(" · ")}
-              </Text>
+                <View className="flex-row items-center gap-2">
+                  <Text className="font-body-bold text-sm text-ink">
+                    {formatHour12(row.time)}
+                  </Text>
+                  <Badge
+                    variant="category"
+                    size="sm"
+                    hue={conditionHue(row.weatherCode)}
+                    label={conditionWord(row.weatherCode)}
+                  />
+                </View>
+                <View className="flex-row items-center gap-2">
+                  <Text className="font-body text-sm text-ink opacity-60">
+                    {row.precipitationProbability}%
+                  </Text>
+                  <Text className="font-body text-sm text-ink">
+                    {formatTemp(row.temperature, unit)}
+                  </Text>
+                </View>
+              </View>
             ))}
           </RuledRows>
         </RuledBlock>
@@ -330,8 +348,8 @@ function DailyFacts({
     });
   }
   if (uvIndexMax != null) facts.push({ label: "UV index", value: `${uvIndexMax}` });
-  if (sunrise) facts.push({ label: "Sunrise", value: sunrise });
-  if (sunset) facts.push({ label: "Sunset", value: sunset });
+  if (sunrise) facts.push({ label: "Sunrise", value: formatHour12(sunrise) });
+  if (sunset) facts.push({ label: "Sunset", value: formatHour12(sunset) });
 
   if (facts.length === 0) return null;
 

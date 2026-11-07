@@ -211,7 +211,7 @@ test.describe("Weather Journey", () => {
         page.getByText("High", { exact: true }),
       ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
       await expect(page.getByText("Hourly", { exact: true })).toBeVisible();
-      await expect(page.getByText(/\d{2}:\d{2} · /).first()).toBeVisible();
+      await expect(page.getByText(/^(1[0-2]|[1-9]) (AM|PM)$/).first()).toBeVisible();
       // The stepper disables at the ends by rendering plain text, not
       // a button (a wrap would read as an infinite list): on the first
       // day Previous is text, Next is a QuietAction.
