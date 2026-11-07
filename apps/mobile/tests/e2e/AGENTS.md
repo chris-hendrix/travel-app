@@ -1,6 +1,6 @@
 # E2E Tests — Playwright (mobile)
 
-8 Playwright specs cover 8 critical user flows across the full
+9 Playwright specs cover 9 critical user flows across the full
 browser→Expo-export→API→DB stack. Ported from the retired web E2E policy
 (its `tests/e2e/AGENTS.md`) after the web app was removed; the mechanics
 differ (the suite drives the Expo web export, not a Next.js server) but the
@@ -33,6 +33,7 @@ they cover.
 | 6 | **Notifications** | `notifications.spec.ts` | Notification center UX (badge, tap-to-navigate, mark as read) |
 |  7 | **Money** |  `settle-journey.spec.ts` | Recording an expense and reading the resulting debt, full stack |
 | 8 | **Travel entry** | `travel-journey.spec.ts` | Filing an arrival, the sheet behind the board's row opening on the where's `Open in Maps`, a **cold load** of a filed row's edit URL and of the traveler's own `member=` door, per-direction delete, a **hire**'s round trip — a chip committing its mode, the board wearing that chip, and a cold-loaded panel showing both of a hire's ends — a **duplicate**'s landing on the board, over the leg its recipient had already filed, and a direction **still owed** filed through its own row's `Edit travel` door, which lands on the record it wrote instead of on the "not on this trip any more" dead end that save used to reach — the wrong-member/frozen-memo class has no unit test, because the Vitest suite has no renderer; and where a save lands you is a navigation, which no unit test has an opinion about either |
+| 9 | **Saved places** | `places-journey.spec.ts` | Organizer saves a typed place, edits its note, pins it; cold reload still reads it and the pinned card leads the grid (saved-place persistence + organizer curation are user-observable outcomes of the new domain, not field validation) |
 
 ## Banned at E2E level
 
