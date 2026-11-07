@@ -27,6 +27,7 @@ import tripServicePlugin from "./plugins/trip-service.js";
 import eventServicePlugin from "./plugins/event-service.js";
 import accommodationServicePlugin from "./plugins/accommodation-service.js";
 import memberTravelServicePlugin from "./plugins/member-travel-service.js";
+import savedPlaceServicePlugin from "./plugins/saved-place-service.js";
 import uploadServicePlugin from "./plugins/upload-service.js";
 import invitationServicePlugin from "./plugins/invitation-service.js";
 import guestMemberServicePlugin from "./plugins/guest-member-service.js";
@@ -62,6 +63,7 @@ import { tripRoutes } from "./routes/trip.routes.js";
 import { eventRoutes } from "./routes/event.routes.js";
 import { accommodationRoutes } from "./routes/accommodation.routes.js";
 import { memberTravelRoutes } from "./routes/member-travel.routes.js";
+import { savedPlaceRoutes } from "./routes/saved-place.routes.js";
 import { invitationRoutes } from "./routes/invitation.routes.js";
 import { guestMemberRoutes } from "./routes/guest-member.routes.js";
 import { messageRoutes } from "./routes/message.routes.js";
@@ -255,6 +257,7 @@ export async function buildApp(
   await app.register(eventServicePlugin);
   await app.register(accommodationServicePlugin);
   await app.register(memberTravelServicePlugin);
+  await app.register(savedPlaceServicePlugin);
   await app.register(uploadServicePlugin);
   await app.register(notificationServicePlugin);
   // Must follow notification-service: trip-service declares it as a dependency
@@ -294,6 +297,7 @@ export async function buildApp(
   await app.register(eventRoutes, { prefix: "/api" });
   await app.register(accommodationRoutes, { prefix: "/api" });
   await app.register(memberTravelRoutes, { prefix: "/api" });
+  await app.register(savedPlaceRoutes, { prefix: "/api" });
   await app.register(invitationRoutes, { prefix: "/api" });
   await app.register(guestMemberRoutes, { prefix: "/api" });
   await app.register(messageRoutes, { prefix: "/api" });

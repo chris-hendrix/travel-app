@@ -187,3 +187,12 @@ export type {
 
 // Re-export link types
 export type { LinkItem } from "./link";
+
+// Re-export saved-place types
+export type {
+  SavedPlace,
+  GetSavedPlacesResponse,
+  GetSavedPlaceResponse,
+  CreateSavedPlaceResponse,
+  UpdateSavedPlaceResponse,
+} from "./saved-place";

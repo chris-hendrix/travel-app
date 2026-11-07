@@ -787,6 +787,7 @@ function DesignSystemScreen() {
                 <Badge label="club" variant="club" />
                 <Badge label="live" variant="live" />
                 <Badge label="sold out" variant="soldOut" />
+                <Badge label="Pinned" variant="pinned" />
                 <Badge label="The Rooftop" variant="venue" />
               </View>
               <View className="gap-2">
@@ -1711,6 +1712,9 @@ function DesignSystemScreen() {
             className="font-body-bold text-base text-ink underline"
           >
             Travel detail
+          </Link>
+          <Link href="/trips/places?id=picos" className="font-body-bold text-base text-ink underline">
+            Places
           </Link>
           <Link href="/invite?id=invite-pending" className="font-body-bold text-base text-ink underline">
             Invitation

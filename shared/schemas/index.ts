@@ -234,6 +234,19 @@ export {
   type PlaceBox,
 } from "./place";
 
+// Re-export saved-place schemas
+export {
+  createSavedPlaceSchema,
+  updateSavedPlaceSchema,
+  pinSavedPlaceSchema,
+  savedPlaceEntitySchema,
+  savedPlaceListResponseSchema,
+  savedPlaceResponseSchema,
+  type CreateSavedPlaceInput,
+  type UpdateSavedPlaceInput,
+  type PinSavedPlaceInput,
+} from "./saved-place";
+
 // Re-export moderation schemas. The reason vocabulary is defined once
 // here; the mobile reason list re-exports it rather than redeclaring it.
 export {
