@@ -611,6 +611,183 @@ async function main() {
     },
   ]);
 
+  // --- Saved places ---
+  //
+  // A board reads rows three ways, and a seed of one shape teaches none of
+  // them. The Google pair travels with its provider — one side without the
+  // other is not a place anyone entered. The typed line has name and
+  // address only: a member's own words, with placeType falling to its
+  // 'misc' default. And the same pair saved by two members is two rows —
+  // D3's "two opinions" — the one duplication the partial unique on
+  // (trip_id, created_by, place_id) deliberately allows: one member must
+  // never save the same pair twice, while two members always may.
+  //
+  // Pins are an organizer act, not a saving one — pinnedBy is always the
+  // trip's organizer, whatever hand typed the row — and the list orders
+  // `pinned_at DESC NULLS LAST, created_at DESC`, so the timestamps here
+  // are written as the facts they screen: the newest pin leads an older
+  // one, and an unpinned row created later still stays below. The ChIJ
+  // ids stand in for real ones, like every other pair in this file; dev
+  // without a GOOGLE_MAPS_API_KEY renders the type placeholder photo and
+  // derives nothing.
+  const savedPlaceRows = await db
+    .insert(schema.savedPlaces)
+    .values([
+      // Tokyo — the rich trip, like its money section: every shape at
+      // least once.
+      {
+        // Alice's pick, with the note. Newest pin, so it leads the other.
+        // Created before it was pinned, the way a real board fills.
+        tripId: tokyo.id,
+        createdBy: alice.id,
+        name: "Sensō-ji Temple",
+        address: "2-3-1 Asakusa, Taito-ku, Tokyo",
+        placeProvider: "google",
+        placeId: "ChIJ49nRLdGLGGAR8TmsESiZ6gA",
+        placeType: "arts_and_entertainment",
+        description:
+          "Go before 8am — the gate is empty and the incense cones free.",
+        pinnedAt: daysFromNow(-1),
+        pinnedBy: alice.id,
+        createdAt: daysFromNow(-3),
+      },
+      {
+        // Carol picked Golden Gai and Alice pinned it a day earlier — the
+        // older pin follows the newer one, whatever else the rows might
+        // suggest.
+        tripId: tokyo.id,
+        createdBy: carol.id,
+        name: "Golden Gai",
+        address: "1-1-6 Kabukicho, Shinjuku-ku, Tokyo",
+        placeProvider: "google",
+        placeId: "ChIJIWa2N5GLGGARUsK1n03bvUc",
+        placeType: "nightlife",
+        pinnedAt: daysFromNow(-2),
+        pinnedBy: alice.id,
+        createdAt: daysFromNow(-4),
+      },
+      {
+        // Eve's second opinion on Carol's pick: same Google pair, her own
+        // row, her card reads "Saved by Eve". Unpinned — though pinning is
+        // per row, so the organizer could pin both opinions of one pair
+        // without anyone losing one.
+        tripId: tokyo.id,
+        createdBy: eve.id,
+        name: "Golden Gai",
+        address: "1-1-6 Kabukicho, Shinjuku-ku, Tokyo",
+        placeProvider: "google",
+        placeId: "ChIJIWa2N5GLGGARUsK1n03bvUc",
+        placeType: "nightlife",
+        description:
+          "Eve: skip the tourist rows, take the six-seat jazz bar two doors in.",
+        createdAt: daysFromNow(-3),
+      },
+      {
+        // Bob's typed place — no pair anywhere, so the card renders his
+        // line, and placeType falls to its 'misc' default. A member's own
+        // words are savable without a Google search behind them.
+        tripId: tokyo.id,
+        createdBy: bob.id,
+        name: "Kanda Yabu Soba",
+        address: "2-10 Kanda Awajicho, Chiyoda-ku, Tokyo",
+        createdAt: daysFromNow(-2),
+      },
+      {
+        // David is the 'maybe' member and still a saver — canAddSavedPlace
+        // is isMember, and any RSVP status counts as membership. His row
+        // carries an explicit type instead of the default.
+        tripId: tokyo.id,
+        createdBy: david.id,
+        name: "Konbini breakfast run",
+        address: "7-Eleven, Shibuya Ekimae",
+        placeType: "food_and_drink",
+        description: "If I make it: egg sandwich, eaten at the crossing.",
+        createdAt: daysFromNow(-2, 9),
+      },
+      {
+        // Eve's second, different pair — the allowed other reading: one
+        // member, two rows, no pair repeated. Created after the newest pin
+        // above, yet it stays an unpinned row and never leads the list.
+        tripId: tokyo.id,
+        createdBy: eve.id,
+        name: "teamLab Planets",
+        address: "Toyosu Market, Koto-ku, Tokyo",
+        placeProvider: "google",
+        placeId: "ChIJ62Y5bJeJGGARbyMPRS7X8dw",
+        placeType: "outdoors",
+        createdAt: daysFromNow(-1, 18),
+      },
+      // Barcelona — the misc default is a monoline, so the picked rows
+      // carry their true type and the chips read a board of tastes.
+      {
+        // Eve picked it outdoors; Bob pinned it. Pinning is an organizer
+        // act, so the pinned hand and the saving hand differ here — that
+        // is the intended reading, not a drift.
+        tripId: barcelona.id,
+        createdBy: eve.id,
+        name: "Bunkers del Carmel",
+        address: "Carrer de Marià Labèrnia, Barcelona",
+        placeProvider: "google",
+        placeId: "ChIJbQ-rh6WIphIRg1E6IlxOsGE",
+        placeType: "outdoors",
+        pinnedAt: daysFromNow(-1),
+        pinnedBy: bob.id,
+        createdAt: daysFromNow(-2),
+      },
+      {
+        // Carol is 'not_going' and still writes: canAddSavedPlace is
+        // isMember, every RSVP status included. Her typed row stays in the
+        // board with its reason under it.
+        tripId: barcelona.id,
+        createdBy: carol.id,
+        name: "Els 4Gats",
+        address: "Carrer de Montsió 3, Barcelona",
+        placeType: "food_and_drink",
+        description:
+          "Carol saved it before dropping out — the Picasso round table is worth the detour anyway.",
+        createdAt: daysFromNow(-1, 15),
+      },
+      {
+        // Bob's own pick — nightlife, a typed-by-search counterpoint to
+        // Carol's line.
+        tripId: barcelona.id,
+        createdBy: bob.id,
+        name: "Jamboree",
+        address: "Plaça Reial 17, Barcelona",
+        placeProvider: "google",
+        placeId: "ChIJleqBN1mipBIR5-3WBJn3j5o",
+        placeType: "nightlife",
+        description: " Monday jazz sessions, cover is cheap if you book.",
+        createdAt: daysFromNow(-3),
+      },
+      // NYC — a past trip, and the pins end silent: the weekend came and
+      // went with nothing curated, so the list shows no Pinned chip and
+      // reads by date alone.
+      {
+        // Alice organized Tokyo and rides this trip as a going member —
+        // she saves her own pick here, no organizer act attached.
+        tripId: nyc.id,
+        createdBy: alice.id,
+        name: "Levain Bakery",
+        address: "351 Amsterdam Ave, New York",
+        placeProvider: "google",
+        placeId: "ChIJn4H2wp5YwokRB8b1o9UYQvY",
+        placeType: "food_and_drink",
+        description: "The walnut cookie splits four ways. Barely.",
+        createdAt: daysFromNow(-9),
+      },
+      {
+        // David's 'maybe' typed line — the park picnic nobody scheduled.
+        tripId: nyc.id,
+        createdBy: david.id,
+        name: "Washington Square Park lawn",
+        address: "Washington Square S, New York",
+        placeType: "outdoors",
+        createdAt: daysFromNow(-8),
+      },
+    ])
+    .returning();
+
   // --- Group Demo Trip ---
   // A week in Lisbon — sample itinerary with events, travel gaps,
   // and mixed member RSVP statuses for testing the full trip lifecycle.
@@ -750,6 +927,55 @@ async function main() {
     },
   ]);
 
+  // Lisbon saved places — the demo trip gets the D3 reprise. Alice pins her
+  // own pick (she is this trip's organizer, so the pinned hand and the
+  // saving hand are the same on purpose), Bob saves the same pair and stays
+  // unpinned — two opinions, one Google place — and Carol, a 'maybe',
+  // writes a typed row with her reason. The Time Out Market pair rides the
+  // event above so one venue carries both readings; the ids stand in for
+  // real ones, and a dev without a GOOGLE_MAPS_API_KEY renders the type
+  // placeholder photo and derives nothing.
+  const lisbonSavedPlaces = await db
+    .insert(schema.savedPlaces)
+    .values([
+      {
+        tripId: lisbon!.id,
+        createdBy: alice.id,
+        name: "Time Out Market Lisboa",
+        address: "Avenida 24 de Julho 49, Lisbon",
+        placeProvider: "google",
+        placeId: "ChIJdWBeWYc0GQ0RhgIB1sZ0lJU",
+        placeType: "food_and_drink",
+        description: "Split the counter: four stalls, one tasting round each.",
+        pinnedAt: daysFromNow(-1),
+        pinnedBy: alice.id,
+        createdAt: daysFromNow(-2),
+      },
+      {
+        // Same pair, second opinion, never pinned — D3 again, smaller trip.
+        tripId: lisbon!.id,
+        createdBy: bob.id,
+        name: "Time Out Market Lisboa",
+        address: "Avenida 24 de Julho 49, Lisbon",
+        placeProvider: "google",
+        placeId: "ChIJdWBeWYc0GQ0RhgIB1sZ0lJU",
+        placeType: "food_and_drink",
+        description: "Bob: go at 4pm, the lines die down by then.",
+        createdAt: daysFromNow(-2, 16),
+      },
+      {
+        // Carol is 'maybe' and saves typed: her own words, her own reason.
+        tripId: lisbon!.id,
+        createdBy: carol.id,
+        name: "Miradouro da Senhora do Monte",
+        address: "Rua da Senhora do Monte, Graça, Lisbon",
+        placeType: "outdoors",
+        description: "If I make it: sunset here, then dinner late.",
+        createdAt: daysFromNow(-1, 15),
+      },
+    ])
+    .returning();
+
   await db.insert(schema.messages).values({
     tripId: lisbon!.id,
     authorId: alice.id,
@@ -759,6 +985,11 @@ async function main() {
 
   console.log(
     "\n  📋 Group demo trip: 'Lisbon Getaway' (login as Alice to test)\n",
+  );
+  console.log(
+    `  🔖 Saved places seeded: ${
+      savedPlaceRows.length + lisbonSavedPlaces.length
+    } rows across the 4 trips\n`,
   );
 
   // Print login info

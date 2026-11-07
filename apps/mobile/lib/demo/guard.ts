@@ -67,6 +67,16 @@ export const DEMO_APP_ROUTES: readonly string[] = [
   "/trips/travel/detail",
   "/trips/travel/form",
   "/trips/settings",
+  // The Places door. The hero's own row of QuietActions ends in it
+  // ("Places"), so the demo renders it, and the list, the row's detail
+  // dialog and the add/edit form are all fully served — the reads, the
+  // create/edit/delete writes and the duplicate-pair 409. The pin
+  // verbs are the organizer's alone and the fixture traveler is never
+  // the organizer, so the demo answers them 403 exactly as the API
+  // would; the dialog never offers the control to begin with.
+  "/trips/places",
+  "/trips/places/detail",
+  "/trips/places/form",
   // The ledger. The trip detail's `Settle` door is unconditional — it
   // is not hidden on role or balance, because a door that appears only
   // once you owe something is one nobody can find when they come to
