@@ -7,6 +7,7 @@ import {
   events,
   accommodations,
   memberTravel,
+  savedPlaces,
 } from "@/db/schema/index.js";
 import { eq, or } from "drizzle-orm";
 import { PermissionsService } from "@/services/permissions.service.js";
@@ -31,6 +32,7 @@ describe("permissions.service", () => {
   let testEventId: string;
   let testAccommodationId: string;
   let testMemberTravelId: string;
+  let testSavedPlaceId: string;
   let _testCreatorMemberId: string;
   let testCoOrganizerMemberId: string;
   let _testMemberMemberId: string;
@@ -39,6 +41,8 @@ describe("permissions.service", () => {
   const cleanup = async () => {
     // Delete in reverse order of foreign key dependencies
     if (testTripId) {
+      // savedPlaces references trips, so delete it alongside the others
+      await db.delete(savedPlaces).where(eq(savedPlaces.tripId, testTripId));
       // memberTravel references members, so delete it first
       await db.delete(memberTravel).where(eq(memberTravel.tripId, testTripId));
       await db.delete(events).where(eq(events.tripId, testTripId));
@@ -201,6 +205,17 @@ describe("permissions.service", () => {
       })
       .returning();
     testMemberTravelId = memberTravelResult[0].id;
+
+    // Create a test saved place (authored by the regular member, status='maybe')
+    const savedPlaceResult = await db
+      .insert(savedPlaces)
+      .values({
+        tripId: testTripId,
+        createdBy: testMemberId,
+        name: "Test Saved Place",
+      })
+      .returning();
+    testSavedPlaceId = savedPlaceResult[0].id;
   });
 
   afterEach(cleanup);
@@ -1343,6 +1358,163 @@ describe("permissions.service", () => {
       const result = await permissionsService.canDeleteMemberTravelWithData(
         testNonMemberId,
         { tripId: testTripId, memberId: testCoOrganizerMemberId },
+      );
+      expect(result).toBe(false);
+    });
+  });
+
+  describe("canAddSavedPlace", () => {
+    it("should return true for a member regardless of RSVP (status=maybe)", async () => {
+      // testMemberId has status='maybe' from setup — add is isMember, not going-gated
+      const result = await permissionsService.canAddSavedPlace(
+        testMemberId,
+        testTripId,
+      );
+      expect(result).toBe(true);
+    });
+
+    it("should return true for an organizer", async () => {
+      const result = await permissionsService.canAddSavedPlace(
+        testCreatorId,
+        testTripId,
+      );
+      expect(result).toBe(true);
+    });
+
+    it("should return false for a stranger (non-member)", async () => {
+      const result = await permissionsService.canAddSavedPlace(
+        testNonMemberId,
+        testTripId,
+      );
+      expect(result).toBe(false);
+    });
+  });
+
+  describe("canEditSavedPlace", () => {
+    it("should return true for the author editing their own place", async () => {
+      const result = await permissionsService.canEditSavedPlace(
+        testMemberId,
+        testSavedPlaceId,
+      );
+      expect(result).toBe(true);
+    });
+
+    it("should return true for an organizer editing anybody's place", async () => {
+      const result = await permissionsService.canEditSavedPlace(
+        testCreatorId,
+        testSavedPlaceId,
+      );
+      expect(result).toBe(true);
+    });
+
+    it("should return false for a non-author, non-organizer member", async () => {
+      // Fresh member who neither authored the place nor organizes the trip
+      const otherPhone = generateUniquePhone();
+      const otherUserResult = await db
+        .insert(users)
+        .values({
+          phoneNumber: otherPhone,
+          displayName: "Other Member",
+          timezone: "UTC",
+        })
+        .returning();
+      const otherUserId = otherUserResult[0].id;
+      await db.insert(members).values({
+        tripId: testTripId,
+        userId: otherUserId,
+        status: "going",
+      });
+
+      const result = await permissionsService.canEditSavedPlace(
+        otherUserId,
+        testSavedPlaceId,
+      );
+      expect(result).toBe(false);
+
+      // canDeleteSavedPlace matches canEditSavedPlace for the same viewer
+      const deleteResult = await permissionsService.canDeleteSavedPlace(
+        otherUserId,
+        testSavedPlaceId,
+      );
+      expect(deleteResult).toBe(false);
+
+      // Clean up
+      await db.delete(members).where(eq(members.userId, otherUserId));
+      await db.delete(users).where(eq(users.id, otherUserId));
+    });
+
+    it("should return false for a stranger (non-member)", async () => {
+      const result = await permissionsService.canEditSavedPlace(
+        testNonMemberId,
+        testSavedPlaceId,
+      );
+      expect(result).toBe(false);
+    });
+
+    it("should return false for a non-existent saved place", async () => {
+      const result = await permissionsService.canEditSavedPlace(
+        testCreatorId,
+        "00000000-0000-0000-0000-000000000000",
+      );
+      expect(result).toBe(false);
+    });
+  });
+
+  describe("canDeleteSavedPlace", () => {
+    it("should return true for the author deleting their own place", async () => {
+      const result = await permissionsService.canDeleteSavedPlace(
+        testMemberId,
+        testSavedPlaceId,
+      );
+      expect(result).toBe(true);
+    });
+
+    it("should return true for an organizer deleting anybody's place", async () => {
+      const result = await permissionsService.canDeleteSavedPlace(
+        testCreatorId,
+        testSavedPlaceId,
+      );
+      expect(result).toBe(true);
+    });
+
+    it("should return false for a stranger (non-member)", async () => {
+      const result = await permissionsService.canDeleteSavedPlace(
+        testNonMemberId,
+        testSavedPlaceId,
+      );
+      expect(result).toBe(false);
+    });
+
+    it("should return false for a non-existent saved place", async () => {
+      const result = await permissionsService.canDeleteSavedPlace(
+        testCreatorId,
+        "00000000-0000-0000-0000-000000000000",
+      );
+      expect(result).toBe(false);
+    });
+  });
+
+  describe("canPinSavedPlace", () => {
+    it("should return true for an organizer", async () => {
+      const result = await permissionsService.canPinSavedPlace(
+        testCreatorId,
+        testTripId,
+      );
+      expect(result).toBe(true);
+    });
+
+    it("should return false for a non-organizer member (even the author)", async () => {
+      const result = await permissionsService.canPinSavedPlace(
+        testMemberId,
+        testTripId,
+      );
+      expect(result).toBe(false);
+    });
+
+    it("should return false for a stranger (non-member)", async () => {
+      const result = await permissionsService.canPinSavedPlace(
+        testNonMemberId,
+        testTripId,
       );
       expect(result).toBe(false);
     });
