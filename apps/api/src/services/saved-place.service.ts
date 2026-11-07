@@ -222,7 +222,7 @@ export class SavedPlaceService implements ISavedPlaceService {
           placeProvider: hasPair ? data.placeProvider! : null,
           placeId: hasPair ? data.placeId! : null,
           placeType: data.placeType ?? "misc",
-          description: data.description ?? null,
+          notes: data.notes ?? null,
         })
         .returning();
     } catch (error) {
@@ -327,9 +327,7 @@ export class SavedPlaceService implements ISavedPlaceService {
     const updateData: Record<string, unknown> = {
       ...(data.name !== undefined ? { name: data.name } : null),
       ...(data.address !== undefined ? { address: data.address ?? null } : null),
-      ...(data.description !== undefined
-        ? { description: data.description ?? null }
-        : null),
+      ...(data.notes !== undefined ? { notes: data.notes ?? null } : null),
       ...(data.placeType !== undefined ? { placeType: data.placeType } : null),
       updatedAt: new Date(),
     };

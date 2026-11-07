@@ -50,7 +50,7 @@ export type SavedPlaceFormInput = {
   placeId: string | null;
   /** "google" for a suggestion pick, null for typed words. */
   placeProvider: "google" | null;
-  description: string;
+  notes: string;
 };
 
 export function PlaceForm({
@@ -99,7 +99,7 @@ export function PlaceForm({
   // appears above it. The same two-step the expense form takes, because
   // a permanent write asks the same question wherever it lives.
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const [description, setDescription] = useState(initial?.description ?? "");
+  const [notes, setNotes] = useState(initial?.notes ?? "");
   const [submitted, setSubmitted] = useState(false);
 
   // The Where answer: the pick's own snapshot, seeded from the row on
@@ -202,7 +202,7 @@ export function PlaceForm({
       // writers supply it: a suggestion carries Google's pair, typed
       // words carry no pair at all.
       placeProvider: placeId ? "google" : null,
-      description: description.trim(),
+      notes: notes.trim(),
     });
   }
 
@@ -268,9 +268,9 @@ export function PlaceForm({
       </View>
 
       <TextField
-        label="Description"
-        value={description}
-        onChangeText={setDescription}
+        label="Notes"
+        value={notes}
+        onChangeText={setNotes}
         placeholder="Book the terrace at sunset."
         multiline
         numberOfLines={3}

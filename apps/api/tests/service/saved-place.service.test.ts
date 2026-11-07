@@ -236,11 +236,11 @@ describe("saved-place.service", () => {
       const updated = await savedPlaceService.updateSavedPlace(
         memberId,
         place.id,
-        { name: "New name", description: "Worth the climb" },
+        { name: "New name", notes: "Worth the climb" },
       );
 
       expect(updated.name).toBe("New name");
-      expect(updated.description).toBe("Worth the climb");
+      expect(updated.notes).toBe("Worth the climb");
     });
 
     it("lets an organizer edit another member's saved place", async () => {

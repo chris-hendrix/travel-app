@@ -85,7 +85,7 @@ export type DemoSavedPlace = {
   name: string;
   address: string | null;
   /** Invented prose so the detail sheet's note renders, when the row has any. */
-  description: string | null;
+  notes: string | null;
   placeType: SavedPlace["placeType"];
   /** The Google pair behind a linked row: a `DEMO_PLACES` id (adapter.ts), absent for a typed word. */
   placeProvider?: "google" | null;
@@ -232,7 +232,7 @@ function savedPlace(
   clock: string,
   options: {
     address?: string;
-    description?: string;
+    notes?: string;
     /** A linked row's `DEMO_PLACES` id (adapter.ts), whose name and address the row restates — the stored words ARE the snapshot. */
     placeId?: string;
     isPinned?: boolean;
@@ -246,7 +246,7 @@ function savedPlace(
     isPinned: options.isPinned ?? false,
     createdAt: atClock(dayIso, clock),
     address: options.address ?? null,
-    description: options.description ?? null,
+    notes: options.notes ?? null,
     ...(options.placeId
       ? { placeProvider: "google" as const, placeId: options.placeId }
       : {}),
@@ -477,7 +477,7 @@ export function buildDemoTrip(today: Date = new Date()): DemoTrip {
       saturday,
       "09:00",
       {
-        description:
+        notes:
           "Left out the side gate, turn right, down the steps. The palapa is the landmark for meeting up.",
       },
     ),
@@ -504,7 +504,7 @@ export function buildDemoTrip(today: Date = new Date()): DemoTrip {
         address: "Blvd. Paseo de la Marina, Cabo San Lucas, BCS, Mexico",
         placeId: "demo-place-solomons-landing",
         isPinned: true,
-        description:
+        notes:
           "Sam's pick for the last night — ask for the long table on the water side.",
       },
     ),
@@ -516,7 +516,7 @@ export function buildDemoTrip(today: Date = new Date()): DemoTrip {
       sunday,
       "07:30",
       {
-        description:
+        notes:
           "Marco's morning run: up the switchbacks behind the marina, twenty minutes up, quicker down.",
       },
     ),
@@ -528,7 +528,7 @@ export function buildDemoTrip(today: Date = new Date()): DemoTrip {
       sunday,
       "08:15",
       {
-        description: "Cash only, opens at seven. The cortado is the one.",
+        notes: "Cash only, opens at seven. The cortado is the one.",
       },
     ),
   ];
@@ -681,7 +681,7 @@ export function buildDemoWeddingTrip(today: Date = new Date()): DemoTrip {
       startDate,
       "11:00",
       {
-        description:
+        notes:
           "The corner one by the church — they let you taste before you buy. The bottles go in the checked bag.",
       },
     ),
@@ -705,7 +705,7 @@ export function buildDemoWeddingTrip(today: Date = new Date()): DemoTrip {
       monday,
       "08:00",
       {
-        description:
+        notes:
           "Priya found it on the last trip: sunrise release, a donation box, no booking. A taxi ride past the hotel.",
       },
     ),
@@ -885,7 +885,7 @@ export function buildDemoBachelorTrip(today: Date = new Date()): DemoTrip {
       startDate,
       "22:00",
       {
-        description:
+        notes:
           "The good chairs are the striped ones. Wood is in the garage — the code is the house code.",
       },
     ),
@@ -921,7 +921,7 @@ export function buildDemoBachelorTrip(today: Date = new Date()): DemoTrip {
       saturday,
       "07:00",
       {
-        description:
+        notes:
           "Sam's morning plan: north along Ocean Front Walk until the stairs, back along the boardwalk.",
       },
     ),

@@ -25,7 +25,7 @@ describe("createSavedPlaceSchema", () => {
     const place = {
       name: "La Bodega",
       address: "Carrer de la Mar 14, Sóller",
-      description: "Great tapas spot for the group dinner",
+      notes: "Great tapas spot for the group dinner",
       placeType: "food_and_drink" as const,
       placeProvider: "google" as const,
       placeId: "ChIJ123",
@@ -70,10 +70,10 @@ describe("createSavedPlaceSchema", () => {
     ).not.toThrow();
   });
 
-  it("should reject a description longer than 2000 characters", () => {
+  it("should reject a note longer than 2000 characters", () => {
     const result = createSavedPlaceSchema.safeParse({
       ...base,
-      description: "a".repeat(2001),
+      notes: "a".repeat(2001),
     });
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -83,9 +83,9 @@ describe("createSavedPlaceSchema", () => {
     }
   });
 
-  it("should accept a description at max length", () => {
+  it("should accept a note at max length", () => {
     expect(() =>
-      createSavedPlaceSchema.parse({ ...base, description: "a".repeat(2000) }),
+      createSavedPlaceSchema.parse({ ...base, notes: "a".repeat(2000) }),
     ).not.toThrow();
   });
 
@@ -159,7 +159,7 @@ describe("updateSavedPlaceSchema", () => {
   it("should accept partial updates", () => {
     const updates = [
       { name: "Renamed spot" },
-      { description: "Updated notes" },
+      { notes: "Updated notes" },
       { address: "New address" },
       { placeType: "lodging" as const },
     ];
@@ -172,7 +172,7 @@ describe("updateSavedPlaceSchema", () => {
     const invalidUpdates = [
       { name: "" },
       { name: "a".repeat(256) },
-      { description: "a".repeat(2001) },
+      { notes: "a".repeat(2001) },
       { address: "a".repeat(501) },
       { placeType: "invalid" },
     ];
@@ -227,7 +227,7 @@ describe("saved place response schemas", () => {
     createdBy: "u1",
     name: "La Bodega",
     address: "Carrer de la Mar 14, Sóller",
-    description: null,
+    notes: null,
     placeType: "food_and_drink" as const,
     place: null,
     isPinned: false,

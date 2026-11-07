@@ -138,7 +138,7 @@ export function useSavedPlaces(tripId: string | undefined): {
 /**
  * Inline mirror of `createSavedPlaceSchema`
  * (`shared/schemas/saved-place.ts`): `name` is the one required field;
- * `address`, `description` and `placeType` ride along when the form
+ * `address`, `notes` and `placeType` ride along when the form
  * collected them, and the Google pair rides along when the row came
  * from a suggestion — there are no picked-snapshot strings on this
  * contract: the row's stored name/address ARE the snapshot, and the
@@ -151,7 +151,7 @@ export function useSavedPlaces(tripId: string | undefined): {
 export type CreateSavedPlaceRequest = {
   name: string;
   address?: string | null;
-  description?: string | null;
+  notes?: string | null;
   placeType?: EventType;
   /** Google place pair — both or neither; absent for a typed word. */
   placeProvider?: "google" | null;
@@ -180,9 +180,7 @@ export async function createSavedPlace(
   const body: CreateSavedPlaceRequest = {
     name: input.name,
     ...(input.address !== undefined ? { address: input.address } : null),
-    ...(input.description !== undefined
-      ? { description: input.description }
-      : null),
+    ...(input.notes !== undefined ? { notes: input.notes } : null),
     ...(input.placeType !== undefined ? { placeType: input.placeType } : null),
     ...(input.placeProvider !== undefined
       ? { placeProvider: input.placeProvider }
@@ -240,9 +238,7 @@ export async function updateSavedPlace(
   const body: UpdateSavedPlaceRequest = {
     ...(input.name !== undefined ? { name: input.name } : null),
     ...(input.address !== undefined ? { address: input.address } : null),
-    ...(input.description !== undefined
-      ? { description: input.description }
-      : null),
+    ...(input.notes !== undefined ? { notes: input.notes } : null),
     ...(input.placeType !== undefined ? { placeType: input.placeType } : null),
     ...(input.placeProvider !== undefined
       ? { placeProvider: input.placeProvider }
@@ -339,7 +335,7 @@ function temporarySavedPlace(
     name: input.name,
     address: input.address ?? null,
     type: input.placeType ?? "misc",
-    description: input.description ?? null,
+    notes: input.notes ?? null,
     isPinned: false,
     createdAt: new Date().toISOString(),
     placeId: input.placeId ?? null,
@@ -404,9 +400,7 @@ function patchFrom(input: UpdateSavedPlaceRequest): Partial<SavedPlace> {
   return {
     ...(input.name !== undefined ? { name: input.name } : null),
     ...(input.address !== undefined ? { address: input.address } : null),
-    ...(input.description !== undefined
-      ? { description: input.description }
-      : null),
+    ...(input.notes !== undefined ? { notes: input.notes } : null),
     ...(input.placeType !== undefined ? { type: input.placeType } : null),
   };
 }

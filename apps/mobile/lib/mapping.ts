@@ -174,7 +174,7 @@ export function toSavedPlace(
     name: place.name,
     address: place.address,
     type: place.placeType,
-    description: place.description,
+    notes: place.notes,
     isPinned: place.isPinned,
     createdAt: iso(place.createdAt),
     placeId: place.place?.placeId ?? null,

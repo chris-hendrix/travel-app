@@ -47,8 +47,8 @@ export interface SavedPlace {
   address: string | null;
   /** The chip the card reads, off the picker's Google types. */
   type: EventType;
-  /** The saver's prose, null until someone writes some. */
-  description: string | null;
+  /** The saver's note — their own words — null until someone writes some. */
+  notes: string | null;
   /** The pin the sheet toggles. The wire carries no `pinnedAt`. */
   isPinned: boolean;
   /** The instant it was saved, as ISO — the card's byline. */

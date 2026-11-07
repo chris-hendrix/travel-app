@@ -33,10 +33,10 @@ const baseSavedPlaceSchema = z
     })
     .transform(stripControlChars),
     address: z.string().max(500).optional(),
-    description: z
+    notes: z
       .string()
       .max(2000, {
-        error: "Description must not exceed 2000 characters",
+        error: "Notes must not exceed 2000 characters",
       })
       .optional(),
     placeType: placeTypeEnum.default("misc"),
@@ -51,7 +51,7 @@ const baseSavedPlaceSchema = z
  * Validates saved-place creation data
  * - name: 1-255 characters (required)
  * - address: max 500 characters (optional, typed-word places carry no placeId)
- * - description: max 2000 characters (optional)
+ * - notes: max 2000 characters (optional)
  * - placeType: one of the 9 event types (defaults to "misc")
  * - placeProvider + placeId: both-or-neither pair (no placeName/
  *   placeAddress snapshot fields — the stored name/address are it)
@@ -93,7 +93,7 @@ export const savedPlaceEntitySchema = z.object({
   createdBy: z.string(),
   name: z.string(),
   address: z.string().nullable(),
-  description: z.string().nullable(),
+  notes: z.string().nullable(),
   placeType: placeTypeEnum,
   place: placeSummarySchema.nullable(),
   isPinned: z.boolean(),

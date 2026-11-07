@@ -157,6 +157,7 @@ function SavedPlaceDetailScreen() {
         place={row}
         viewerUserId={user?.id ?? ""}
         isOrganizer={viewer?.isOrganizer ?? false}
+        pinPending={pin.isPending}
         onTogglePin={() => {
           setPinError(null);
           pin.mutate(

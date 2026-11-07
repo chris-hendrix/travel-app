@@ -2717,8 +2717,8 @@
           "notNull": true,
           "default": "'misc'"
         },
-        "description": {
-          "name": "description",
+        "notes": {
+          "name": "notes",
           "type": "text",
           "primaryKey": false,
           "notNull": false

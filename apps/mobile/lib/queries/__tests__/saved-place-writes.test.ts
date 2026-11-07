@@ -48,7 +48,7 @@ function apiSavedPlace(overrides: Partial<ApiSavedPlace> = {}): ApiSavedPlace {
     createdBy: "user-1",
     name: "Konoba Mate",
     address: "Hvar harbour",
-    description: "Book the terrace.",
+    notes: "Book the terrace.",
     placeType: "food_and_drink",
     place: null,
     isPinned: false,
@@ -84,7 +84,7 @@ function cachedPlace(overrides: Partial<SavedPlace> = {}): SavedPlace {
     name: "Konoba Mate",
     address: "Hvar harbour",
     type: "food_and_drink",
-    description: "Book the terrace.",
+    notes: "Book the terrace.",
     isPinned: false,
     createdAt: "2026-10-11T10:00:00.000Z",
     placeId: null,
@@ -143,7 +143,7 @@ describe("toSavedPlace", () => {
       name: "Konoba Mate",
       address: "Hvar harbour",
       type: "food_and_drink",
-      description: "Book the terrace.",
+      notes: "Book the terrace.",
       isPinned: false,
       createdAt: "2026-10-11T10:00:00.000Z",
       placeId: null,
@@ -513,19 +513,19 @@ describe("updateSavedPlace", () => {
     mockedApiFetch.mockReset();
     mockedApiFetch.mockResolvedValue({
       success: true,
-      savedPlace: apiSavedPlace({ description: "New words" }),
+      savedPlace: apiSavedPlace({ notes: "New words" }),
     });
 
     const place = await updateSavedPlace("sp-1", {
-      description: "New words",
+      notes: "New words",
     });
 
     expect(mockedApiFetch).toHaveBeenCalledWith("/saved-places/sp-1", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ description: "New words" }),
+      body: JSON.stringify({ notes: "New words" }),
     });
-    expect(place.description).toBe("New words");
+    expect(place.notes).toBe("New words");
   });
 
   // The server refuses a repeated pair on an edit too ("update tried

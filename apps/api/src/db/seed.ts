@@ -645,7 +645,7 @@ async function main() {
         placeProvider: "google",
         placeId: "ChIJ49nRLdGLGGAR8TmsESiZ6gA",
         placeType: "arts_and_entertainment",
-        description:
+        notes:
           "Go before 8am — the gate is empty and the incense cones free.",
         pinnedAt: daysFromNow(-1),
         pinnedBy: alice.id,
@@ -678,7 +678,7 @@ async function main() {
         placeProvider: "google",
         placeId: "ChIJIWa2N5GLGGARUsK1n03bvUc",
         placeType: "nightlife",
-        description:
+        notes:
           "Eve: skip the tourist rows, take the six-seat jazz bar two doors in.",
         createdAt: daysFromNow(-3),
       },
@@ -701,7 +701,7 @@ async function main() {
         name: "Konbini breakfast run",
         address: "7-Eleven, Shibuya Ekimae",
         placeType: "food_and_drink",
-        description: "If I make it: egg sandwich, eaten at the crossing.",
+        notes: "If I make it: egg sandwich, eaten at the crossing.",
         createdAt: daysFromNow(-2, 9),
       },
       {
@@ -743,7 +743,7 @@ async function main() {
         name: "Els 4Gats",
         address: "Carrer de Montsió 3, Barcelona",
         placeType: "food_and_drink",
-        description:
+        notes:
           "Carol saved it before dropping out — the Picasso round table is worth the detour anyway.",
         createdAt: daysFromNow(-1, 15),
       },
@@ -757,7 +757,7 @@ async function main() {
         placeProvider: "google",
         placeId: "ChIJleqBN1mipBIR5-3WBJn3j5o",
         placeType: "nightlife",
-        description: " Monday jazz sessions, cover is cheap if you book.",
+        notes: " Monday jazz sessions, cover is cheap if you book.",
         createdAt: daysFromNow(-3),
       },
       // NYC — a past trip, and the pins end silent: the weekend came and
@@ -773,7 +773,7 @@ async function main() {
         placeProvider: "google",
         placeId: "ChIJn4H2wp5YwokRB8b1o9UYQvY",
         placeType: "food_and_drink",
-        description: "The walnut cookie splits four ways. Barely.",
+        notes: "The walnut cookie splits four ways. Barely.",
         createdAt: daysFromNow(-9),
       },
       {
@@ -946,7 +946,7 @@ async function main() {
         placeProvider: "google",
         placeId: "ChIJdWBeWYc0GQ0RhgIB1sZ0lJU",
         placeType: "food_and_drink",
-        description: "Split the counter: four stalls, one tasting round each.",
+        notes: "Split the counter: four stalls, one tasting round each.",
         pinnedAt: daysFromNow(-1),
         pinnedBy: alice.id,
         createdAt: daysFromNow(-2),
@@ -960,7 +960,7 @@ async function main() {
         placeProvider: "google",
         placeId: "ChIJdWBeWYc0GQ0RhgIB1sZ0lJU",
         placeType: "food_and_drink",
-        description: "Bob: go at 4pm, the lines die down by then.",
+        notes: "Bob: go at 4pm, the lines die down by then.",
         createdAt: daysFromNow(-2, 16),
       },
       {
@@ -970,7 +970,7 @@ async function main() {
         name: "Miradouro da Senhora do Monte",
         address: "Rua da Senhora do Monte, Graça, Lisbon",
         placeType: "outdoors",
-        description: "If I make it: sunset here, then dinner late.",
+        notes: "If I make it: sunset here, then dinner late.",
         createdAt: daysFromNow(-1, 15),
       },
     ])

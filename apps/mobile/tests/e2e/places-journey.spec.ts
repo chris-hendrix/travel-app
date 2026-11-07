@@ -68,8 +68,8 @@ async function saveTypedPlaceViaUI(
     timeout: ELEMENT_TIMEOUT,
   });
   if (note !== undefined) {
-    // components/trip/PlaceForm.tsx: TextField label="Description".
-    const noteInput = page.getByRole("textbox", { name: "Description" });
+    // components/trip/PlaceForm.tsx: TextField label="Notes".
+    const noteInput = page.getByRole("textbox", { name: "Notes" });
     await noteInput.click();
     await noteInput.pressSequentially(note);
   }
@@ -195,8 +195,8 @@ test.describe("Places Journey", () => {
       await expect(page.getByText(placeName).last()).toBeVisible({
         timeout: ELEMENT_TIMEOUT,
       });
-      // components/trip/PlaceDetail.tsx: the saver's prose under the
-      // "Description" rule; the byline says "You" for the viewer.
+      // components/trip/PlaceDetail.tsx: the saver's note under the
+      // "Notes" rule; the byline says "You" for the viewer.
       await expect(page.getByText(note)).toBeVisible();
       // .last(): the list's card stays mounted under the pushed detail
       // (the travel spec's "Add travel" lesson) and wears its own
@@ -215,7 +215,7 @@ test.describe("Places Journey", () => {
       // read — the prefilled note proves the edit screen mounted with
       // the row. selectText + pressSequentially: replacing rather than
       // appending, without the clear-and-refill desync.
-      const noteInput = page.getByRole("textbox", { name: "Description" });
+      const noteInput = page.getByRole("textbox", { name: "Notes" });
       await expect(noteInput).toHaveValue(note, {
         timeout: ELEMENT_TIMEOUT,
       });
@@ -308,14 +308,12 @@ test.describe("Places Journey", () => {
         timeout: NAVIGATION_TIMEOUT,
       });
       // components/trip/PlaceDetail.tsx: the organizer's one verb at
-      // the foot is a QuietAction — "Pin to top" — named by the row it
-      // is about (ariaLabel), the roster's "whose row" rule. The pin
-      // invalidates the list; the sheet repaints inverted.
-      await page
-        .getByRole("button", { name: `Pin to top ${pinnedName}` })
-        .click();
+      // the foot is a design-system Button — "Pin to top" — the sheet
+      // holding one place, so the label names its target alone. The
+      // pin invalidates the list; the sheet repaints inverted.
+      await page.getByRole("button", { name: "Pin to top" }).click();
       await expect(
-        page.getByRole("button", { name: `Unpin ${pinnedName}` }),
+        page.getByRole("button", { name: "Unpin" }),
       ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
     });
 

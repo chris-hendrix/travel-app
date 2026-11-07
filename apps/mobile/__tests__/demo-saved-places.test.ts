@@ -19,7 +19,7 @@ type WireSavedPlace = {
   createdBy: string;
   name: string;
   address: string | null;
-  description: string | null;
+  notes: string | null;
   placeType: string;
   place: null;
   isPinned: boolean;

@@ -7,7 +7,7 @@ CREATE TABLE "saved_places" (
 	"place_provider" text,
 	"place_id" text,
 	"place_type" "event_type" DEFAULT 'misc' NOT NULL,
-	"description" text,
+	"notes" text,
 	"pinned_at" timestamp with time zone,
 	"pinned_by" uuid,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,

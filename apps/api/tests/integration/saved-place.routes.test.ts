@@ -364,7 +364,7 @@ describe("Saved Place Routes", () => {
         method: "PUT",
         url: `/api/saved-places/${id}`,
         cookies: { auth_token: token },
-        payload: { name: "New name", description: "Worth the climb" },
+        payload: { name: "New name", notes: "Worth the climb" },
       });
 
       expect(response.statusCode).toBe(200);
@@ -372,7 +372,7 @@ describe("Saved Place Routes", () => {
       const body = JSON.parse(response.body);
       expect(body).toHaveProperty("success", true);
       expect(body.savedPlace.name).toBe("New name");
-      expect(body.savedPlace.description).toBe("Worth the climb");
+      expect(body.savedPlace.notes).toBe("Worth the climb");
     });
 
     it("should return 403 for a non-author non-organizer edit", async () => {

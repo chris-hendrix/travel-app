@@ -363,7 +363,7 @@ export const savedPlaces = pgTable(
     placeProvider: text("place_provider"),
     placeId: text("place_id"),
     placeType: eventTypeEnum("place_type").notNull().default("misc"),
-    description: text("description"),
+    notes: text("notes"),
     pinnedAt: timestamp("pinned_at", { withTimezone: true }),
     pinnedBy: uuid("pinned_by").references(() => users.id),
     createdAt: timestamp("created_at", { withTimezone: true })

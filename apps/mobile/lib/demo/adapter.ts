@@ -183,7 +183,7 @@ function savedPlaceRow(
     createdBy: plan.createdBy,
     name: plan.name,
     address: plan.address,
-    description: plan.description,
+    notes: plan.notes,
     placeType: plan.placeType,
     place: null,
     isPinned: plan.isPinned,
@@ -945,8 +945,8 @@ export function handleDemoRequest(
         createdBy: DEMO_VIEWER_USER_ID,
         name,
         address: typeof body.address === "string" ? body.address : null,
-        description:
-          typeof body.description === "string" ? body.description : null,
+        notes:
+          typeof body.notes === "string" ? body.notes : null,
         placeType: asEventType(body.placeType),
         place: null,
         isPinned: false,
@@ -1084,9 +1084,8 @@ export function handleDemoRequest(
       if (body.address !== undefined) {
         row.address = typeof body.address === "string" ? body.address : null;
       }
-      if (body.description !== undefined) {
-        row.description =
-          typeof body.description === "string" ? body.description : null;
+      if (body.notes !== undefined) {
+        row.notes = typeof body.notes === "string" ? body.notes : null;
       }
       if (typeof body.placeType === "string") {
         row.placeType = asEventType(body.placeType);

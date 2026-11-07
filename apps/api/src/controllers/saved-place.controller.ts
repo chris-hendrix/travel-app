@@ -29,7 +29,7 @@ function toSavedPlaceEntity(row: AttachedSavedPlace) {
     createdBy: row.createdBy,
     name: row.name,
     address: row.address,
-    description: row.description,
+    notes: row.notes,
     placeType: row.placeType,
     place: row.place,
     isPinned: row.pinnedAt != null,

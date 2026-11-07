@@ -13,7 +13,8 @@ export interface SavedPlace {
   createdBy: string;
   name: string;
   address: string | null;
-  description: string | null;
+  /** The member's note — the saver's own comment on the place. */
+  notes: string | null;
   placeType: "travel" | "food_and_drink" | "arts_and_entertainment" | "outdoors" | "nightlife" | "wellness" | "shopping" | "lodging" | "misc";
   /** Resolved place summary; null for typed-word places carrying no placeId */
   place: PlaceSummary | null;

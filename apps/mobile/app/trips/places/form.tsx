@@ -57,7 +57,7 @@ function toCreateRequest(input: SavedPlaceFormInput): CreateSavedPlaceRequest {
   return {
     name: input.name,
     ...(input.address ? { address: input.address } : null),
-    ...(input.description ? { description: input.description } : null),
+    ...(input.notes ? { notes: input.notes } : null),
     placeType: input.placeType,
     ...(input.placeId
       ? { placeProvider: "google" as const, placeId: input.placeId }
@@ -78,7 +78,7 @@ function toUpdateRequest(input: SavedPlaceFormInput): UpdateSavedPlaceRequest {
   return {
     name: input.name,
     address: input.address ?? "",
-    description: input.description,
+    notes: input.notes,
     placeType: input.placeType,
     ...(input.placeId
       ? { placeProvider: "google" as const, placeId: input.placeId }
@@ -225,7 +225,7 @@ function SavedPlaceFormScreen() {
           address: row.address,
           placeType: row.type,
           placeId: row.placeId,
-          description: row.description ?? "",
+          notes: row.notes ?? "",
         }
       : undefined;
 

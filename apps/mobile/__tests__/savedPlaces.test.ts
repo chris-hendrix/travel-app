@@ -23,7 +23,7 @@ function place(overrides: Partial<SavedPlace> = {}): SavedPlace {
     name: `Place ${counter}`,
     address: `${counter} Main St`,
     type: "misc",
-    description: null,
+    notes: null,
     isPinned: false,
     createdAt: "2026-09-19T12:00:00.000Z",
     placeId: null,
