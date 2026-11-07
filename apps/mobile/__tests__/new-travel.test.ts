@@ -123,6 +123,33 @@ describe("legFromLookup", () => {
         .crossesMidnight,
     ).toBe(false);
   });
+
+  it("fills a departure in the same field order", () => {
+    const leg = legFromLookup(emptyLeg(), "departure", LOOKUP, "UA 1842", "UTC");
+    expect(leg.flightNumber).toBe("UA 1842");
+    expect(leg.departureTime).toBe("07:00");
+    expect(leg.arrivalTime).toBe("15:40");
+    expect(leg.day).toBe("2026-09-18");
+    expect(leg.location).toBe("Newark (EWR)");
+    expect(leg.otherLocation).toBe("Barcelona (BCN)");
+    expect(leg.crossesMidnight).toBe(false);
+  });
+
+  it("fills an overnight departure the other way round: day is the departure day and the arrival lands after midnight", () => {
+    const leg = legFromLookup(
+      emptyLeg(),
+      "departure",
+      OVERNIGHT,
+      "UA 1842",
+      "UTC",
+    );
+    expect(leg.departureTime).toBe("23:30");
+    expect(leg.arrivalTime).toBe("07:15");
+    expect(leg.day).toBe("2026-09-18");
+    expect(leg.location).toBe("Newark (EWR)");
+    expect(leg.otherLocation).toBe("Barcelona (BCN)");
+    expect(leg.crossesMidnight).toBe(true);
+  });
 });
 
 describe("buildLegRecord", () => {
