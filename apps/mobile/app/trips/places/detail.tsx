@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Text } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
@@ -55,6 +56,12 @@ function SavedPlaceDetailScreen() {
   const { members } = useMembers(trip?.id);
   const viewer = viewerOf(members, user?.id);
   const saved = useSavedPlaces(trip?.id);
+  // The pin write's failure, read off the writer the way the members
+  // sheet reads the role toggle's (`setRoleError`): cleared before each
+  // attempt, shown under the verb while it stands. The optimistic flag
+  // needs no own rollback here — the writer's `onError` rolls the cache
+  // back, and this screen's `row` reads that cache.
+  const [pinError, setPinError] = useState<string | null>(null);
   // Read before the guards: a hook called after a return is a hook called
   // a different number of times. The mutation never fires without a row,
   // so the empty key below is never read — it only keeps the hook above
@@ -150,12 +157,14 @@ function SavedPlaceDetailScreen() {
         place={row}
         viewerUserId={user?.id ?? ""}
         isOrganizer={viewer?.isOrganizer ?? false}
-        onTogglePin={() =>
-          void pin.mutateAsync({
-            savedPlaceId: row.id,
-            pinned: !row.isPinned,
-          })
-        }
+        onTogglePin={() => {
+          setPinError(null);
+          pin.mutate(
+            { savedPlaceId: row.id, pinned: !row.isPinned },
+            { onError: () => setPinError("Couldn't pin the place.") },
+          );
+        }}
+        pinError={pinError}
       />
     </FullscreenDialog>
   );

@@ -51,8 +51,6 @@ function apiSavedPlace(overrides: Partial<ApiSavedPlace> = {}): ApiSavedPlace {
     description: "Book the terrace.",
     placeType: "food_and_drink",
     place: null,
-    placeName: null,
-    placeAddress: null,
     isPinned: false,
     createdAt: new Date("2026-10-11T10:00:00.000Z"),
     updatedAt: new Date("2026-10-11T10:00:00.000Z"),
@@ -296,8 +294,6 @@ describe("createSavedPlace", () => {
       placeType: "food_and_drink",
       placeProvider: "google",
       placeId: "ChIJKonoba1",
-      placeName: "Konoba Mate",
-      placeAddress: "Hvar harbour",
     });
 
     expect(mockedApiFetch).toHaveBeenCalledTimes(1);
@@ -310,8 +306,6 @@ describe("createSavedPlace", () => {
         placeType: "food_and_drink",
         placeProvider: "google",
         placeId: "ChIJKonoba1",
-        placeName: "Konoba Mate",
-        placeAddress: "Hvar harbour",
       }),
     });
     expect(place.placeId).toBe("ChIJKonoba1");
@@ -334,6 +328,28 @@ describe("createSavedPlace", () => {
     expect(body).toEqual({ name: "That cove with the rope swing" });
     expect(place.placeId).toBeNull();
     expect(place.image).toBeNull();
+  });
+
+  // The entity has no snapshot columns for the picked place — the row's
+  // own name/address ARE the snapshot — and the server strips unknown
+  // body keys, so the pair travels with the strings the row keeps.
+  it("sends no snapshot keys the wire no longer carries", async () => {
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockResolvedValue({
+      success: true,
+      savedPlace: apiSavedPlace({ place: linkedPlace() }),
+    });
+
+    const [, init] = (await createSavedPlace("trip-1", {
+      name: "Konoba Mate",
+      address: "Hvar harbour",
+      placeType: "food_and_drink",
+      placeProvider: "google",
+      placeId: "ChIJKonoba1",
+    }).then(() => mockedApiFetch.mock.calls[0])) as [string, { body: string }];
+    const body = JSON.parse(init.body) as Record<string, unknown>;
+    expect(Object.keys(body)).not.toContain("placeName");
+    expect(Object.keys(body)).not.toContain("placeAddress");
   });
 
   it("a 409 reaches the caller as a CODE, not a sentence", async () => {
@@ -510,6 +526,26 @@ describe("updateSavedPlace", () => {
       body: JSON.stringify({ description: "New words" }),
     });
     expect(place.description).toBe("New words");
+  });
+
+  // The server refuses a repeated pair on an edit too ("update tried
+  // pair duplicate"), so the same code-first contract holds: the form's
+  // submit handler reads the code through `isSavedPlaceDuplicate` for
+  // both verbs and answers under Where either way.
+  it("an edit's duplicate pair 409 reaches the caller as a CODE too", async () => {
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockRejectedValue(
+      new ApiError(409, "This place is already saved", "SAVED_PLACE_DUPLICATE"),
+    );
+
+    const failure = await updateSavedPlace("sp-1", {
+      placeProvider: "google",
+      placeId: "ChIJKonoba1",
+    }).catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(ApiError);
+    expect((failure as ApiError).code).toBe("SAVED_PLACE_DUPLICATE");
+    expect(isSavedPlaceDuplicate(failure)).toBe(true);
   });
 });
 

@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-query";
 import { ApiError, apiFetch } from "@/lib/api";
 import { toSavedPlace } from "@/lib/mapping";
+import { orderedPlaces } from "@/lib/savedPlaces";
 import { isOffline } from "@/lib/queries/errors";
 import { membersOptions } from "@/lib/queries/members";
 import {
@@ -61,9 +62,12 @@ export type GetSavedPlacesResponse = {
  * Rows map through `toSavedPlace` with a blank `creatorName` — the
  * entity carries `createdBy` (a user id) and no name at all, so the
  * name is resolved per render off the cached roster in
- * `useSavedPlaces`, not here. The server supplies no order the client
- * may depend on, so the pinned lead is the reader's paint
- * (`pinLead`), not the array as it arrives.
+ * `useSavedPlaces`, not here. The server's list is already ordered
+ * pinned-first-then-newest (`apps/api/src/services/saved-place.service.ts`,
+ * verified by its route comment and service test), but the wire carries
+ * no `pinnedAt`, so a cache edit cannot re-derive that order — the
+ * client keeps a stable-partition order (`orderedPlaces`) for
+ * optimistic edits to land consistently inside it.
  */
 export const savedPlacesOptions = (tripId: string) =>
   queryOptions({
@@ -135,12 +139,14 @@ export function useSavedPlaces(tripId: string | undefined): {
  * Inline mirror of `createSavedPlaceSchema`
  * (`shared/schemas/saved-place.ts`): `name` is the one required field;
  * `address`, `description` and `placeType` ride along when the form
- * collected them, and the Google pair plus the picked snapshot strings
- * ride along when the row came from a suggestion. zod is not a mobile
- * dep, so the shape is declared inline (the events Task 2 precedent).
+ * collected them, and the Google pair rides along when the row came
+ * from a suggestion — there are no picked-snapshot strings on this
+ * contract: the row's stored name/address ARE the snapshot, and the
+ * server strips unknown body keys anyway. zod is not a mobile dep, so
+ * the shape is declared inline (the events Task 2 precedent).
  *
- * A typed word carries no pair at all — no `placeId`, no provider, no
- * snapshot — which is what makes it typed.
+ * A typed word carries no pair at all — no `placeId`, no provider —
+ * which is what makes it typed.
  */
 export type CreateSavedPlaceRequest = {
   name: string;
@@ -150,9 +156,6 @@ export type CreateSavedPlaceRequest = {
   /** Google place pair — both or neither; absent for a typed word. */
   placeProvider?: "google" | null;
   placeId?: string | null;
-  /** Picked-place snapshot strings — absent for a typed word. */
-  placeName?: string | null;
-  placeAddress?: string | null;
 };
 
 /** Every field optional: an edit sends only what changed. */
@@ -185,12 +188,6 @@ export async function createSavedPlace(
       ? { placeProvider: input.placeProvider }
       : null),
     ...(input.placeId !== undefined ? { placeId: input.placeId } : null),
-    ...(input.placeName !== undefined
-      ? { placeName: input.placeName }
-      : null),
-    ...(input.placeAddress !== undefined
-      ? { placeAddress: input.placeAddress }
-      : null),
   };
 
   const response = await apiFetch<{ success: true; savedPlace: ApiSavedPlace }>(
@@ -206,11 +203,13 @@ export async function createSavedPlace(
 }
 
 /**
- * True for the already-saved 409 and only it. A repeated Google pair
- * is the one create failure the form answers in place (the duplicate
- * affordance), so the predicate — not a custom error class with a
- * sentence — is what names it. Mirrors `isGuestPhoneTaken`'s shape
- * without its wrapper: the `ApiError` already carries the code.
+ * True for the already-saved 409 and only it. A repeated Google pair is
+ * refused the same way on create and on edit (an update that re-picks a
+ * pair another row holds is the same duplicate), so the form's one
+ * submit handler answers it in place under Where either way. The
+ * predicate — not a custom error class with a sentence — is what names
+ * it; it mirrors `isGuestPhoneTaken`'s shape without its wrapper: the
+ * `ApiError` already carries the code.
  */
 export function isSavedPlaceDuplicate(error: unknown): boolean {
   return (
@@ -228,9 +227,11 @@ export function isSavedPlaceDuplicate(error: unknown): boolean {
  * `toSavedPlace` — the same full-entity response as create, so no
  * placeholder merge.
  *
- * Clearing a link sends the pair (and the snapshot) as explicit nulls
- * — absent leaves the columns untouched, which is how the row keeps
- * what the edit did not name.
+ * Clearing a link sends the pair as explicit nulls — absent leaves the
+ * columns untouched, which is how the row keeps what the edit did not
+ * name. A repeated Google pair is a 409 `SAVED_PLACE_DUPLICATE` here
+ * too, and it reaches the caller code-first the same way create's does
+ * (`isSavedPlaceDuplicate`).
  */
 export async function updateSavedPlace(
   savedPlaceId: string,
@@ -247,12 +248,6 @@ export async function updateSavedPlace(
       ? { placeProvider: input.placeProvider }
       : null),
     ...(input.placeId !== undefined ? { placeId: input.placeId } : null),
-    ...(input.placeName !== undefined
-      ? { placeName: input.placeName }
-      : null),
-    ...(input.placeAddress !== undefined
-      ? { placeAddress: input.placeAddress }
-      : null),
   };
 
   const response = await apiFetch<{ success: true; savedPlace: ApiSavedPlace }>(
@@ -488,9 +483,14 @@ export function useDeleteSavedPlace(tripId: string) {
  * exists on the wire to sort by (Task 5), so recency is not painted —
  * the flag flips and the card leads, and the refetch keeps whatever
  * order the server answers.
+ *
+ * The partition itself is not re-hand-rolled here: `orderedPlaces`
+ * (`lib/savedPlaces.ts`) is the pure, unit-tested implementation, and
+ * this wrapper keeps only the pin-paint name the `onMutate` below
+ * reads.
  */
 function pinLead(rows: SavedPlace[]): SavedPlace[] {
-  return [...rows.filter((row) => row.isPinned), ...rows.filter((row) => !row.isPinned)];
+  return orderedPlaces(rows);
 }
 
 /**

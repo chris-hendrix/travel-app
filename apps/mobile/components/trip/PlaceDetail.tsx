@@ -6,6 +6,7 @@ import { PhotoCredit } from "@/components/ui/PhotoCredit";
 import { PlaceActions } from "@/components/ui/PlaceActions";
 import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
 import { QuietAction } from "@/components/ui/QuietAction";
+import { InlineError } from "@/components/ui/InlineError";
 import { RuledBlock } from "@/components/ui/RuledBlock";
 import { useMotion } from "@/hooks/useMotion";
 import { EVENT_HUES } from "@/lib/eventColors";
@@ -34,7 +35,10 @@ import type { SavedPlace } from "@/lib/saved-places";
  *
  * The organizer's one extra verb sits at the foot as a `QuietAction` —
  * `Pin to top` / `Unpin` — the pin the plan keeps off the cards, where a
- * per-row glyph would be a 44pt target two-thirds of the trip cannot use.
+ * per-row glyph would be a 44pt target two-thirds of the trip cannot
+ * use. A failed pin reads as a transient line right under it — the
+ * members sheet's role-error bargain — while the optimistic flag is
+ * rolled back by the writer itself.
  * Edit lives in the dialog's bar, never here: the travel sheet's own
  * rule is that there is no second Edit button at the foot. Delete lives
  * on the form, the way every sibling sheet files it (stay, event and
@@ -46,6 +50,7 @@ export function PlaceDetail({
   viewerUserId,
   isOrganizer,
   onTogglePin,
+  pinError,
 }: {
   place: SavedPlace;
   /** The viewer's **user** id, for the "You" in the byline. */
@@ -54,6 +59,8 @@ export function PlaceDetail({
   isOrganizer: boolean;
   /** Flips the pin; the list invalidates itself, so nothing follows. */
   onTogglePin: () => void;
+  /** The last pin write's failure, owned by the caller that reads it. */
+  pinError?: string | null;
 }) {
   const motion = useMotion();
 
@@ -149,11 +156,14 @@ export function PlaceDetail({
           one quiet verb at the foot of the sheet, and only the organizer
           sees it. */}
       {isOrganizer ? (
-        <QuietAction
-          label={place.isPinned ? "Unpin" : "Pin to top"}
-          ariaLabel={`${place.isPinned ? "Unpin" : "Pin to top"} ${place.name}`}
-          onPress={onTogglePin}
-        />
+        <View className="gap-2">
+          <QuietAction
+            label={place.isPinned ? "Unpin" : "Pin to top"}
+            ariaLabel={`${place.isPinned ? "Unpin" : "Pin to top"} ${place.name}`}
+            onPress={onTogglePin}
+          />
+          {pinError ? <InlineError message={pinError} /> : null}
+        </View>
       ) : null}
     </View>
   );

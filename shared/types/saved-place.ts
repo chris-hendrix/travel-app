@@ -17,10 +17,6 @@ export interface SavedPlace {
   placeType: "travel" | "food_and_drink" | "arts_and_entertainment" | "outdoors" | "nightlife" | "wellness" | "shopping" | "lodging" | "misc";
   /** Resolved place summary; null for typed-word places carrying no placeId */
   place: PlaceSummary | null;
-  /** The picked place's name, stored on the row at pick time. The display source. */
-  placeName: string | null;
-  /** The picked place's formatted address, stored on the row at pick time. */
-  placeAddress: string | null;
   isPinned: boolean;
   createdAt: Date;
   updatedAt: Date;

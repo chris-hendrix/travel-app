@@ -117,6 +117,8 @@ export interface ISavedPlaceService {
    * @returns Promise that resolves to the updated saved place
    * @throws SavedPlaceNotFoundError if saved place not found
    * @throws PermissionDeniedError if user is neither author nor organizer
+   * @throws SavedPlaceDuplicateError if the update points the row at a
+   *   Google place the member already saved in another trip row
    */
   updateSavedPlace(
     userId: string,
@@ -332,22 +334,39 @@ export class SavedPlaceService implements ISavedPlaceService {
       updatedAt: new Date(),
     };
 
-    // The place pair moves as a unit: both halves arrive together (the
-    // schema's both-or-neither holds at the route) or the stored pair is
-    // left alone. A halve carried without its mate would write a row the
-    // attach cannot resolve, so a lone half is dropped rather than stored.
-    if (data.placeProvider !== undefined || data.placeId !== undefined) {
-      if (data.placeProvider != null && data.placeId != null) {
-        updateData.placeProvider = data.placeProvider;
-        updateData.placeId = data.placeId;
-      }
+    // The pair patches three ways, decided by key presence (the schema
+    // enforces both-or-neither, so a lone half never reaches here):
+    //   - neither key present → the stored pair is untouched;
+    //   - both keys with values → the pair is replaced;
+    //   - both keys explicitly null → the link is cleared (the edit
+    //     form's unlink), which typed-word rows carry.
+    // Nulls land in the columns only when the key arrived, so an absent
+    // key can never erase a stored pair.
+    if (data.placeProvider !== undefined) {
+      updateData.placeProvider = data.placeProvider ?? null;
+    }
+    if (data.placeId !== undefined) {
+      updateData.placeId = data.placeId ?? null;
     }
 
+    // The same member pointing this row at the Google place already
+    // saved to another row of the trip is refused by
+    // `saved_places_member_place_unique` — the create path's catch is
+    // the guard here too, and turns its 23505 into the 409 the routes
+    // surface.
     const [updated] = await this.db
       .update(savedPlaces)
       .set(updateData)
       .where(eq(savedPlaces.id, savedPlaceId))
-      .returning();
+      .returning()
+      .catch((error: unknown) => {
+        if (isMemberPlaceConflict(error)) {
+          throw new SavedPlaceDuplicateError(
+            "You have already saved this place to this trip",
+          );
+        }
+        throw error;
+      });
 
     if (!updated) {
       throw new SavedPlaceNotFoundError();

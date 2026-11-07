@@ -150,11 +150,11 @@ describe("Saved Place Routes", () => {
         address: "Carrer de la Mar 14, Soller",
         tripId,
       });
-      // The entity shape per shared schemas: resolved place, snapshot
-      // pair (null — the table carries no such columns), pin flag.
+      // The entity shape per shared schemas: resolved place (null until
+      // the pair resolves), no snapshot fields, pin flag.
       expect(body.savedPlace).toHaveProperty("place", null);
-      expect(body.savedPlace).toHaveProperty("placeName", null);
-      expect(body.savedPlace).toHaveProperty("placeAddress", null);
+      expect(body.savedPlace).not.toHaveProperty("placeName");
+      expect(body.savedPlace).not.toHaveProperty("placeAddress");
       expect(body.savedPlace).toHaveProperty("isPinned", false);
     });
 
@@ -277,7 +277,7 @@ describe("Saved Place Routes", () => {
       expect(response.statusCode).toBe(401);
     });
 
-    it("should return 403 if user is not a member", async () => {
+    it("should return 404 NOT_FOUND for a non-member on an existing trip", async () => {
       app = await buildApp();
       const { tripId } = await seedMember("List Owner");
       const { token } = await seedOutsider("List Outsider");
@@ -288,7 +288,14 @@ describe("Saved Place Routes", () => {
         cookies: { auth_token: token },
       });
 
-      expect(response.statusCode).toBe(403);
+      // The read answer is masked: an existing trip a non-member cannot
+      // see is indistinguishable from a trip that does not exist (the
+      // event and accommodation reads behave the same).
+      expect(response.statusCode).toBe(404);
+      expect(JSON.parse(response.body)).toMatchObject({
+        success: false,
+        error: { code: "NOT_FOUND" },
+      });
     });
 
     it("should return 404 for an unknown trip", async () => {
@@ -302,6 +309,40 @@ describe("Saved Place Routes", () => {
       });
 
       expect(response.statusCode).toBe(404);
+    });
+
+    it("should let an incomplete-profile member read the list (no 403)", async () => {
+      app = await buildApp();
+      const { tripId } = await seedMember("Incomplete List Owner");
+
+      // The trips table has a createdBy NOT NULL, so seed the member
+      // directly with a blank displayName — the shape the guard blocks.
+      const [incompleteUser] = await db
+        .insert(users)
+        .values({
+          phoneNumber: generateUniquePhone(),
+          displayName: "",
+          timezone: "UTC",
+        })
+        .returning();
+      await db.insert(members).values({
+        tripId,
+        userId: incompleteUser!.id,
+        status: "going",
+      });
+      const token = app.jwt.sign({
+        sub: incompleteUser!.id,
+        name: incompleteUser!.displayName,
+      });
+
+      const response = await app.inject({
+        method: "GET",
+        url: `/api/trips/${tripId}/saved-places`,
+        cookies: { auth_token: token },
+      });
+
+      // Reads stay auth-only: the guard scopes writes, not this GET.
+      expect(response.statusCode).toBe(200);
     });
   });
 
@@ -370,9 +411,124 @@ describe("Saved Place Routes", () => {
 
       expect(response.statusCode).toBe(404);
     });
+
+    it("should return 403 PROFILE_INCOMPLETE for an incomplete-profile member edit", async () => {
+      app = await buildApp();
+      const { token, tripId } = await seedMember("Incomplete Editor Owner");
+
+      const [incompleteUser] = await db
+        .insert(users)
+        .values({
+          phoneNumber: generateUniquePhone(),
+          displayName: "",
+          timezone: "UTC",
+        })
+        .returning();
+      await db.insert(members).values({
+        tripId,
+        userId: incompleteUser!.id,
+        status: "going",
+      });
+      const incompleteToken = app.jwt.sign({
+        sub: incompleteUser!.id,
+        name: incompleteUser!.displayName,
+      });
+
+      const created = await app.inject({
+        method: "POST",
+        url: `/api/trips/${tripId}/saved-places`,
+        cookies: { auth_token: token },
+        payload: { name: "Theirs" },
+      });
+      const id = JSON.parse(created.body).savedPlace.id;
+
+      const response = await app.inject({
+        method: "PUT",
+        url: `/api/saved-places/${id}`,
+        cookies: { auth_token: incompleteToken },
+        payload: { name: "No profile yet" },
+      });
+
+      // The write-scope profile guard fires before the author/organizer
+      // check — same status/code as every other feature's writes.
+      expect(response.statusCode).toBe(403);
+      expect(JSON.parse(response.body)).toMatchObject({
+        success: false,
+        error: { code: "PROFILE_INCOMPLETE" },
+      });
+    });
+
+    it("should return 409 SAVED_PLACE_DUPLICATE when the edit points the row at a place the member already saved", async () => {
+      app = await buildApp();
+      const { token, tripId } = await seedMember("Update Duplicate User");
+
+      const payload = {
+        name: "Cafe de Flore",
+        placeProvider: "google",
+        placeId: TEST_PLACE_ID,
+      };
+
+      const first = await app.inject({
+        method: "POST",
+        url: `/api/trips/${tripId}/saved-places`,
+        cookies: { auth_token: token },
+        payload,
+      });
+      expect(first.statusCode).toBe(201);
+
+      // The second row is a typed save (no pair) so the create itself
+      // passes; the conflict only happens when its pair is PUT on later.
+      const second = await app.inject({
+        method: "POST",
+        url: `/api/trips/${tripId}/saved-places`,
+        cookies: { auth_token: token },
+        payload: { name: "Second Row" },
+      });
+      expect(second.statusCode).toBe(201);
+      const secondId = JSON.parse(second.body).savedPlace.id;
+
+      const response = await app.inject({
+        method: "PUT",
+        url: `/api/saved-places/${secondId}`,
+        cookies: { auth_token: token },
+        payload: {
+          name: "Now the same Google place",
+          placeProvider: "google",
+          placeId: TEST_PLACE_ID,
+        },
+      });
+
+      expect(response.statusCode).toBe(409);
+      expect(JSON.parse(response.body)).toMatchObject({
+        success: false,
+        error: { code: "SAVED_PLACE_DUPLICATE" },
+      });
+    });
   });
 
   describe("DELETE /api/saved-places/:id", () => {
+    it("should return 403 for a non-author non-organizer delete", async () => {
+      app = await buildApp();
+      const { token, tripId } = await seedMember("Delete Owner");
+      const { token: otherToken } = await seedExtraMember("Delete Other", tripId);
+
+      const created = await app.inject({
+        method: "POST",
+        url: `/api/trips/${tripId}/saved-places`,
+        cookies: { auth_token: token },
+        payload: { name: "Do not delete" },
+      });
+      const id = JSON.parse(created.body).savedPlace.id;
+
+      const response = await app.inject({
+        method: "DELETE",
+        url: `/api/saved-places/${id}`,
+        cookies: { auth_token: otherToken },
+      });
+
+      expect(response.statusCode).toBe(403);
+    });
+
     it("should delete a saved place and return 200", async () => {
       app = await buildApp();
       const { token, tripId } = await seedMember("Delete User");
@@ -479,6 +635,42 @@ describe("Saved Place Routes", () => {
         url: `/api/saved-places/${id}/pin`,
         cookies: { auth_token: token },
         payload: { pinned: true },
+      });
+
+      expect(response.statusCode).toBe(403);
+    });
+
+    it("should return 404 for a pin on an unknown saved place", async () => {
+      app = await buildApp();
+      const { token } = await seedMember("Pin Unknown");
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/api/saved-places/${UNKNOWN_UUID}/pin`,
+        cookies: { auth_token: token },
+        payload: { pinned: true },
+      });
+
+      expect(response.statusCode).toBe(404);
+    });
+
+    it("should return 403 for a non-organizer unpin", async () => {
+      app = await buildApp();
+      const { tripId } = await seedMember("Unpin Trip Owner");
+      const { token } = await seedExtraMember("Unpin Member", tripId);
+
+      const created = await app.inject({
+        method: "POST",
+        url: `/api/trips/${tripId}/saved-places`,
+        cookies: { auth_token: token },
+        payload: { name: "Pinnable" },
+      });
+      const id = JSON.parse(created.body).savedPlace.id;
+
+      const response = await app.inject({
+        method: "DELETE",
+        url: `/api/saved-places/${id}/pin`,
+        cookies: { auth_token: token },
       });
 
       expect(response.statusCode).toBe(403);

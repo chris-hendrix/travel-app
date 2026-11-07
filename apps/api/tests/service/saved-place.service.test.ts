@@ -276,6 +276,111 @@ describe("saved-place.service", () => {
         }),
       ).rejects.toThrow(SavedPlaceNotFoundError);
     });
+
+    it("rejects an update to a Google place the member already saved with a 409 SAVED_PLACE_DUPLICATE", async () => {
+      const first = await savedPlaceService.createSavedPlace(memberId, tripId, {
+        name: "Café de Flore",
+        placeProvider: "google",
+        placeId: TEST_PLACE_ID,
+      });
+      const second = await savedPlaceService.createSavedPlace(
+        memberId,
+        tripId,
+        { name: "Second row" },
+      );
+
+      const duplicate = savedPlaceService.updateSavedPlace(memberId, second.id, {
+        name: "Now the same Google place",
+        placeProvider: "google",
+        placeId: TEST_PLACE_ID,
+      });
+      await expect(duplicate).rejects.toThrow(SavedPlaceDuplicateError);
+
+      try {
+        await savedPlaceService.updateSavedPlace(memberId, second.id, {
+          name: "Retry that never lands",
+          placeProvider: "google",
+          placeId: TEST_PLACE_ID,
+        });
+        expect.unreachable("expected SAVED_PLACE_DUPLICATE");
+      } catch (err) {
+        const coded = err as { code?: string; statusCode?: number };
+        expect(coded.code).toBe("SAVED_PLACE_DUPLICATE");
+        expect(coded.statusCode).toBe(409);
+      }
+      expect(first.id).not.toBe(second.id);
+    });
+
+    it("lets an edit overwrite the row's own pair without tripping the index", async () => {
+      const place = await savedPlaceService.createSavedPlace(memberId, tripId, {
+        name: "Café de Flore",
+        placeProvider: "google",
+        placeId: TEST_PLACE_ID,
+      });
+
+      const updated = await savedPlaceService.updateSavedPlace(memberId, place.id, {
+        name: "Café de Flore, renamed",
+        placeProvider: "google",
+        placeId: TEST_PLACE_ID,
+      });
+
+      expect(updated.placeId).toBe(TEST_PLACE_ID);
+      expect(updated.name).toBe("Café de Flore, renamed");
+    });
+
+    it("clears the stored pair when the update carries both keys null", async () => {
+      const place = await savedPlaceService.createSavedPlace(memberId, tripId, {
+        name: "Café de Flore",
+        placeProvider: "google",
+        placeId: TEST_PLACE_ID,
+      });
+
+      const updated = await savedPlaceService.updateSavedPlace(memberId, place.id, {
+        name: "Unlinked",
+        placeProvider: null,
+        placeId: null,
+      });
+
+      expect(updated.placeProvider).toBeNull();
+      expect(updated.placeId).toBeNull();
+      // After the clear the row has no pair to resolve, so the attach
+      // answers null without touching the provider.
+      const cache = new PlaceCacheService(db);
+      const [listed] = await savedPlaceService.getSavedPlacesByTrip(tripId, cache);
+      expect(listed!.place).toBeNull();
+    });
+
+    it("replaces the stored pair when the update carries a different filled pair", async () => {
+      const place = await savedPlaceService.createSavedPlace(memberId, tripId, {
+        name: "Old pick",
+        placeProvider: "google",
+        placeId: TEST_PLACE_ID,
+      });
+
+      const updated = await savedPlaceService.updateSavedPlace(memberId, place.id, {
+        placeProvider: "google",
+        placeId: "ChIJ-saved-place-test-2",
+      });
+
+      expect(updated.placeProvider).toBe("google");
+      expect(updated.placeId).toBe("ChIJ-saved-place-test-2");
+    });
+
+    it("leaves the stored pair untouched when the update omits both keys", async () => {
+      const place = await savedPlaceService.createSavedPlace(memberId, tripId, {
+        name: "Untouched pair",
+        placeProvider: "google",
+        placeId: TEST_PLACE_ID,
+      });
+
+      const updated = await savedPlaceService.updateSavedPlace(memberId, place.id, {
+        name: "Renamed only",
+      });
+
+      expect(updated.name).toBe("Renamed only");
+      expect(updated.placeProvider).toBe("google");
+      expect(updated.placeId).toBe(TEST_PLACE_ID);
+    });
   });
 
   describe("deleteSavedPlace", () => {

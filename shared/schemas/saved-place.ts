@@ -21,8 +21,9 @@ const placeTypeEnum = z.enum(
  * Base saved-place data schema (without cross-field validation)
  * - Used as the foundation for both create and update schemas
  */
-const baseSavedPlaceSchema = z.object({
-  name: z
+const baseSavedPlaceSchema = z
+  .object({
+    name: z
     .string()
     .min(1, {
       error: "Saved place name must be at least 1 character",
@@ -31,16 +32,20 @@ const baseSavedPlaceSchema = z.object({
       error: "Saved place name must not exceed 255 characters",
     })
     .transform(stripControlChars),
-  address: z.string().max(500).optional(),
-  description: z
-    .string()
-    .max(2000, {
-      error: "Description must not exceed 2000 characters",
-    })
-    .optional(),
-  placeType: placeTypeEnum.default("misc"),
-  ...placePairFields,
-});
+    address: z.string().max(500).optional(),
+    description: z
+      .string()
+      .max(2000, {
+        error: "Description must not exceed 2000 characters",
+      })
+      .optional(),
+    placeType: placeTypeEnum.default("misc"),
+    ...placePairFields,
+  })
+  // The saved_places table has no snapshot columns for the picked
+  // place's name/address — the row's own name/address ARE the snapshot —
+  // so the snapshot fields other place blocks carry are dropped here.
+  .omit({ placeName: true, placeAddress: true });
 
 /**
  * Validates saved-place creation data
@@ -48,7 +53,8 @@ const baseSavedPlaceSchema = z.object({
  * - address: max 500 characters (optional, typed-word places carry no placeId)
  * - description: max 2000 characters (optional)
  * - placeType: one of the 9 event types (defaults to "misc")
- * - placeProvider + placeId: both-or-neither pair
+ * - placeProvider + placeId: both-or-neither pair (no placeName/
+ *   placeAddress snapshot fields — the stored name/address are it)
  */
 export const createSavedPlaceSchema = baseSavedPlaceSchema.refine(
   isCompletePlacePair,
@@ -90,8 +96,6 @@ export const savedPlaceEntitySchema = z.object({
   description: z.string().nullable(),
   placeType: placeTypeEnum,
   place: placeSummarySchema.nullable(),
-  placeName: z.string().nullable(),
-  placeAddress: z.string().nullable(),
   isPinned: z.boolean(),
   createdAt: z.date(),
   updatedAt: z.date(),

@@ -112,7 +112,10 @@ export function orderedPlaces(places: readonly SavedPlace[]): SavedPlace[] {
  * A saved place onto the card's slots, the `EventCard` bargain: the
  * badge and the placeholder kind are the raw type value (the component
  * reads `EVENT_TYPE_LABEL` and `EVENT_HUES`), `meta` is the creator
- * name verbatim, and a missing address is an empty footnote.
+ * name verbatim, and a missing — or whitespace-only — address is an
+ * empty footnote, so the card's `footnote || undefined` agrees with
+ * the detail sheet's `address?.trim()` guard: neither draws a line
+ * over nothing.
  *
  * `meta` is passed through untouched — "You" is the component's word
  * (`createdBy === viewerUserId`), never this layer's.
@@ -128,7 +131,7 @@ export function savedPlaceCard(place: SavedPlace): {
     badge: place.type,
     meta: place.creatorName,
     title: place.name,
-    footnote: place.address ?? "",
+    footnote: place.address?.trim() ? place.address : "",
     kind: place.type,
   };
 }

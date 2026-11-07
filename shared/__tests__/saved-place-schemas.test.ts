@@ -29,11 +29,13 @@ describe("createSavedPlaceSchema", () => {
       placeType: "food_and_drink" as const,
       placeProvider: "google" as const,
       placeId: "ChIJ123",
-      placeName: "La Bodega",
-      placeAddress: "Carrer de la Mar 14, Sóller",
     };
     const parsed = createSavedPlaceSchema.parse(place);
     expect(parsed.placeId).toBe("ChIJ123");
+    // The snapshot fields other place blocks carry are not part of this
+    // domain: the base object omits them.
+    expect(parsed).not.toHaveProperty("placeName");
+    expect(parsed).not.toHaveProperty("placeAddress");
   });
 
   it("should reject a missing name", () => {
@@ -196,6 +198,15 @@ describe("updateSavedPlaceSchema", () => {
       }),
     ).not.toThrow();
   });
+
+  it("should accept an explicit-null pair (the edit form's unlink)", () => {
+    const parsed = updateSavedPlaceSchema.parse({
+      placeProvider: null,
+      placeId: null,
+    });
+    expect(parsed.placeProvider).toBeNull();
+    expect(parsed.placeId).toBeNull();
+  });
 });
 
 describe("pinSavedPlaceSchema", () => {
@@ -219,8 +230,6 @@ describe("saved place response schemas", () => {
     description: null,
     placeType: "food_and_drink" as const,
     place: null,
-    placeName: "La Bodega",
-    placeAddress: "Carrer de la Mar 14, Sóller",
     isPinned: false,
     createdAt: new Date(),
     updatedAt: new Date(),

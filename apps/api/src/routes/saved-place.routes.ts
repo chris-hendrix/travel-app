@@ -38,9 +38,10 @@ const savedPlaceIdParamsSchema = z.object({
  * Registers all saved-place-related endpoints
  *
  * Read routes (GET) require authentication only. Write routes carry the
- * write rate limit; only POST create additionally requires a complete
- * profile (edits, deletes, and pins stay available to members with an
- * incomplete profile, matching the trip-place precedent).
+ * write rate limit and require a complete profile via the scope-level
+ * `requireCompleteProfile` hook — the same rule every other write
+ * surface (trips, events, accommodations, member-travel, messages,
+ * invitations) applies to its writes.
  *
  * @param fastify - Fastify instance
  */
@@ -69,12 +70,13 @@ export async function savedPlaceRoutes(fastify: FastifyInstance) {
    * Write routes scope
    * All routes registered here share authenticate + checkBanned hooks,
    * and each carries `writeRateLimitConfig` as its own route config.
-   * `requireCompleteProfile` applies to POST create only, as a
-   * route-level preHandler on that route.
+   * `requireCompleteProfile` applies scope-wide to every write route
+   * (create, update, delete, pin, unpin), mirroring the event scope.
    */
   fastify.register(async (scope) => {
     scope.addHook("preHandler", authenticate);
     scope.addHook("preHandler", checkBanned);
+    scope.addHook("preHandler", requireCompleteProfile);
 
     /**
      * POST /trips/:tripId/saved-places
@@ -86,7 +88,6 @@ export async function savedPlaceRoutes(fastify: FastifyInstance) {
       "/trips/:tripId/saved-places",
       {
         config: { rateLimit: writeRateLimitConfig },
-        preHandler: [requireCompleteProfile],
         schema: {
           params: tripIdParamsSchema,
           body: createSavedPlaceSchema,

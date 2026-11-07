@@ -7,7 +7,7 @@ import type {
 } from "@journiful/shared/schemas";
 import type { PlaceSummary } from "@journiful/shared/types";
 import { trips, type SavedPlace } from "@/db/schema/index.js";
-import { TripNotFoundError, PermissionDeniedError } from "../errors.js";
+import { TripNotFoundError } from "../errors.js";
 import { attachPlace } from "@/services/place-attach.service.js";
 
 /** A saved-place row with its resolved `place` summary attached. */
@@ -16,10 +16,11 @@ type AttachedSavedPlace = SavedPlace & { place: PlaceSummary | null };
 /**
  * Maps a stored row to the shared entity shape.
  *
- * The table carries no `placeName`/`placeAddress` snapshot columns — the
- * durable pair lives in `placeProvider`/`placeId` and `place` is its
- * resolved view — so the snapshot pair always answers null. `isPinned`
- * reads `pinnedAt`: a set timestamp means pinned, null means not.
+ * The durable provider pair lives in `placeProvider`/`placeId` and
+ * `place` is its resolved view; the row's own `name`/`address` are the
+ * display snapshot — there are no separate picked-place snapshot
+ * columns. `isPinned` reads `pinnedAt`: a set timestamp means pinned,
+ * null means not.
  */
 function toSavedPlaceEntity(row: AttachedSavedPlace) {
   return {
@@ -31,8 +32,6 @@ function toSavedPlaceEntity(row: AttachedSavedPlace) {
     description: row.description,
     placeType: row.placeType,
     place: row.place,
-    placeName: null,
-    placeAddress: null,
     isPinned: row.pinnedAt != null,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -147,13 +146,13 @@ export const savedPlaceController = {
         throw new TripNotFoundError();
       }
 
-      // Any member (any status) may read; outsiders get 403, not a 404
-      // that would hide whether the trip exists.
+      // Any member (any status) may read. A non-member on an existing
+      // trip gets the same 404 as a nonexistent trip — like the event and
+      // accommodation reads — so the list does not reveal which trips
+      // exist. (Writes keep the explicit 403.)
       const isMember = await permissionsService.isMember(userId, tripId);
       if (!isMember) {
-        throw new PermissionDeniedError(
-          "Permission denied: only members can view saved places",
-        );
+        throw new TripNotFoundError();
       }
 
       // The service attaches the cached `place` summary per row (list mode)

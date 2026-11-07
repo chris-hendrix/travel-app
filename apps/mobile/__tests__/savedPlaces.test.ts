@@ -236,6 +236,13 @@ describe("savedPlaceCard", () => {
     expect(savedPlaceCard(place({ address: null })).footnote).toBe("");
   });
 
+  // A whitespace-only address reads the same as missing — the card's
+  // `footnote || undefined` and the detail sheet's `address?.trim()`
+  // guard agree: neither draws a line over nothing.
+  it("reads a whitespace-only address as an empty footnote", () => {
+    expect(savedPlaceCard(place({ address: "   " })).footnote).toBe("");
+  });
+
   it("passes creatorName through untouched: no You at this layer", () => {
     // "You" is the component's word (createdBy === viewerUserId); the
     // pure card carries whatever name the roster resolved, verbatim.
