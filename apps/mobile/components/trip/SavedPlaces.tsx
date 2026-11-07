@@ -30,12 +30,12 @@ import {
  * compares `createdBy` against), the way the settle screen reads its
  * viewer off the session rather than a query param.
  *
- * Two filter rows, in that order. The first is the one exclusive
- * choice — the type — so it says `radiogroup` and each chip says
- * `radio` (the TravelDialog precedent): `All` plus one chip per type
- * present, in canonical event-type order. The second row is two
- * independent toggles (`Pinned`, `Yours`) with the default button role.
- * The chips derive from the WHOLE list, never the filtered one
+ * One filter line: the type choice and the two toggles in the same
+ * flow. The type chips say `radio` (the TravelDialog precedent) —
+ * `All` plus one chip per type present, in canonical event-type order
+ * — and the two independent toggles (`Pinned`, `Yours`) follow with
+ * the default button role, one visual group. The chips derive from the
+ * WHOLE list, never the filtered one
  * (`typeChipsFor(allPlaces)`), so a chip can never vanish under the
  * filter that chose it; the `Pinned` chip renders only when something
  * is pinned (`hasAnyPinned`), `Yours` always does.
@@ -83,54 +83,53 @@ export function SavedPlaces({
 
   return (
     <View className="gap-6">
-      {/* The filters: the exclusive type choice, then the two
-          independent toggles. Both rows wrap — ten chips at most — so
-          nothing clips at 390. */}
-      <View className="gap-2">
-        <View
-          className="flex-row flex-wrap gap-2"
-          role="radiogroup"
-          aria-label="Type of place"
-        >
-          {chips.map((chip) => (
-            <ChipToggle
-              key={chip}
-              role="radio"
-              label={chip === "All" ? "All" : EVENT_TYPE_LABEL[chip]}
-              selected={selectedType === chip}
-              onPress={() =>
-                setFilters((previous) => ({
-                  ...previous,
-                  type: chip === "All" ? undefined : chip,
-                }))
-              }
-            />
-          ))}
-        </View>
-        <View className="flex-row flex-wrap gap-2">
-          {hasAnyPinned(places) ? (
-            <ChipToggle
-              label="Pinned"
-              selected={filters.pinnedOnly ?? false}
-              onPress={() =>
-                setFilters((previous) => ({
-                  ...previous,
-                  pinnedOnly: !previous.pinnedOnly,
-                }))
-              }
-            />
-          ) : null}
+      {/* The filters: one line — the type choice and the two
+          independent toggles in the same flow, twelve chips at most,
+          wrapping so nothing clips at 390. A category chip exists only
+          when a place carries that type (`typeChipsFor` reads the whole
+          list), and `Pinned` exists only when something is pinned;
+          `Yours` always does, because its empty state is information. */}
+      <View
+        className="flex-row flex-wrap gap-2"
+        role="radiogroup"
+        aria-label="Filters"
+      >
+        {chips.map((chip) => (
           <ChipToggle
-            label="Yours"
-            selected={filters.yoursOnly ?? false}
+            key={chip}
+            role="radio"
+            label={chip === "All" ? "All" : EVENT_TYPE_LABEL[chip]}
+            selected={selectedType === chip}
             onPress={() =>
               setFilters((previous) => ({
                 ...previous,
-                yoursOnly: !previous.yoursOnly,
+                type: chip === "All" ? undefined : chip,
               }))
             }
           />
-        </View>
+        ))}
+        {hasAnyPinned(places) ? (
+          <ChipToggle
+            label="Pinned"
+            selected={filters.pinnedOnly ?? false}
+            onPress={() =>
+              setFilters((previous) => ({
+                ...previous,
+                pinnedOnly: !previous.pinnedOnly,
+              }))
+            }
+          />
+        ) : null}
+        <ChipToggle
+          label="Yours"
+          selected={filters.yoursOnly ?? false}
+          onPress={() =>
+            setFilters((previous) => ({
+              ...previous,
+              yoursOnly: !previous.yoursOnly,
+            }))
+          }
+        />
       </View>
 
       {places.length === 0 ? (

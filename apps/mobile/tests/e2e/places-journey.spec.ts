@@ -174,7 +174,7 @@ test.describe("Places Journey", () => {
       });
       await expect(
         page
-          .getByRole("radiogroup", { name: "Type of place" })
+          .getByRole("radiogroup", { name: "Filters" })
           .getByText("Other"),
       ).toBeVisible();
       await expect(page.getByText("Other", { exact: true })).toHaveCount(2);
