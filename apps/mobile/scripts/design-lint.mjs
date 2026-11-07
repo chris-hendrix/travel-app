@@ -638,8 +638,15 @@ checkBandsAreFullBleed();
  * branch measures is **42** — the two admin sites took 40 to 42, which the cap
  * this branch inherited already allowed. Left at 44 by the author's choice; the
  * number is theirs to spend.
+ *
+ * **Raised 44 to 46, 2026-11, for the saved-places detail sheet.** The sheet
+ * draws two `RuledBlock`s it did not have — `Where` and `Description` — one
+ * for the picked address and one for the member's note, mirroring the event
+ * sheet's own blocks for the same two kinds of prose. Raised deliberately
+ * rather than side-stepped with `rule={false}`, because each block is a real
+ * boundary a reader separates from its neighbors.
  */
-const RULE_CENSUS_MAX = 44;
+const RULE_CENSUS_MAX = 46;
 
 /**
  * Every string literal with its offset. `classLiterals` (check 4) hands back

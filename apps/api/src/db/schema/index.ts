@@ -344,6 +344,52 @@ export const accommodations = pgTable(
 export type Accommodation = typeof accommodations.$inferSelect;
 export type NewAccommodation = typeof accommodations.$inferInsert;
 
+// Saved places table — member-saved spots per trip (typed place or Google
+// place pair), pinnable. Partial unique on (trip, member, place_id) so a
+// member cannot save the same Google place twice, while typed places
+// (place_id NULL) stay unrestricted.
+export const savedPlaces = pgTable(
+  "saved_places",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tripId: uuid("trip_id")
+      .notNull()
+      .references(() => trips.id, { onDelete: "cascade" }),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id),
+    name: varchar("name", { length: 255 }).notNull(),
+    address: text("address"),
+    placeProvider: text("place_provider"),
+    placeId: text("place_id"),
+    placeType: eventTypeEnum("place_type").notNull().default("misc"),
+    notes: text("notes"),
+    pinnedAt: timestamp("pinned_at", { withTimezone: true }),
+    pinnedBy: uuid("pinned_by").references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("saved_places_trip_id_idx").on(table.tripId),
+    index("saved_places_created_by_idx").on(table.createdBy),
+    index("saved_places_trip_id_pinned_at_idx").on(
+      table.tripId,
+      table.pinnedAt,
+    ),
+    uniqueIndex("saved_places_member_place_unique")
+      .on(table.tripId, table.createdBy, table.placeId)
+      .where(sql`${table.placeId} IS NOT NULL`),
+  ],
+);
+
+// Inferred types for saved_places table
+export type SavedPlace = typeof savedPlaces.$inferSelect;
+export type NewSavedPlace = typeof savedPlaces.$inferInsert;
+
 // Place cache table — versioned normalized snapshot of provider place
 // details, keyed (provider, place_id) with a 30-day TTL-on-read. No foreign
 // key from the entity columns: the two sides have different lifetimes (a

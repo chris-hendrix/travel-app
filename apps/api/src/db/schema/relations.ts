@@ -7,6 +7,7 @@ import {
   accommodations,
   memberTravel,
   invitations,
+  savedPlaces,
   messages,
   messageReactions,
   notifications,
@@ -26,6 +27,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   memberships: many(members),
   createdEvents: many(events),
   createdAccommodations: many(accommodations),
+  createdSavedPlaces: many(savedPlaces),
   invitations: many(invitations),
   messages: many(messages),
   messageReactions: many(messageReactions),
@@ -42,6 +44,7 @@ export const tripsRelations = relations(trips, ({ one, many }) => ({
   members: many(members),
   events: many(events),
   accommodations: many(accommodations),
+  savedPlaces: many(savedPlaces),
   memberTravel: many(memberTravel),
   invitations: many(invitations),
   messages: many(messages),
@@ -72,6 +75,22 @@ export const accommodationsRelations = relations(accommodations, ({ one }) => ({
   creator: one(users, {
     fields: [accommodations.createdBy],
     references: [users.id],
+  }),
+}));
+
+export const savedPlacesRelations = relations(savedPlaces, ({ one }) => ({
+  trip: one(trips, {
+    fields: [savedPlaces.tripId],
+    references: [trips.id],
+  }),
+  creator: one(users, {
+    fields: [savedPlaces.createdBy],
+    references: [users.id],
+  }),
+  pinnedByUser: one(users, {
+    fields: [savedPlaces.pinnedBy],
+    references: [users.id],
+    relationName: "savedPlacePinnedBy",
   }),
 }));
 

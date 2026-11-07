@@ -12,7 +12,9 @@
  *
  * Reads served: `GET /trips/:id` for all three demo trips, members,
  * events,
- * accommodations, member-travel, the ledger (`payments`, `balances` and
+ * accommodations, member-travel, the trip's saved places (the Places door's
+ * list, ordered pinned-first then newest — see `savedPlacesAsRead`), the ledger
+ * (`payments`, `balances` and
  * `balances/me`, all computed from the fixture's expenses rather than
  * written down — see `tripBalances` in `lib/demo/money.ts`), invitations
  * (empty), the trip-settings
@@ -23,7 +25,9 @@
  * picking one fills the field the way a real suggestion would). Writes served in memory: RSVP, event/stay/
  * travel create/update/delete, payment create/update/delete (soft, as the
  * API's is), sharePhone, notification preferences,
- * calendar exclusion. `POST /flights/lookup` answers 404, which
+ * calendar exclusion, and the saved places' own writes (create, edit,
+ * delete, pin/unpin, with the duplicate-pair 409 and the
+ * author-or-organizer and organizer-only rules the API runs). `POST /flights/lookup` answers 404, which
  * `lookupFlight` already reads as "no such flight" — the travel form
  * still files by hand. Everything else answers the API 404 envelope.
  */
@@ -40,8 +44,8 @@ import {
   seedLedger,
   updatePayment,
 } from "@/lib/demo/money";
-import { findRowAnywhere, notFound, nowIso } from "@/lib/demo/store";
-import type { DemoBody, DemoStore } from "@/lib/demo/store";
+import { findRowAnywhere, forbidden, notFound, nowIso } from "@/lib/demo/store";
+import type { DemoBody, DemoSavedPlaceRow, DemoStore } from "@/lib/demo/store";
 import type { RsvpStatus } from "@/lib/rsvp";
 import { TRANSPORT_MODES, rankTravelLocations } from "@journiful/shared/utils";
 import type { TransportMode } from "@journiful/shared/utils";
@@ -162,6 +166,35 @@ function travelRow(tripId: string, record: DemoTrip["travel"][number]): MemberTr
 }
 
 /**
+ * One stored saved place off the fixture's shorthand. `place` is
+ * `null` on purpose — the real server's attach degrades to null
+ * without a cache, so the demo serves the same honest null and the
+ * card renders its typed/placeholder art from the type — while the
+ * Google pair a linked row carries rides on the row as the pair of
+ * columns the duplicate rule reads (`DemoSavedPlaceRow`).
+ */
+function savedPlaceRow(
+  tripId: string,
+  plan: DemoTrip["savedPlaces"][number],
+): DemoSavedPlaceRow {
+  return {
+    id: plan.id,
+    tripId,
+    createdBy: plan.createdBy,
+    name: plan.name,
+    address: plan.address,
+    notes: plan.notes,
+    placeType: plan.placeType,
+    place: null,
+    isPinned: plan.isPinned,
+    createdAt: plan.createdAt as unknown as Date,
+    updatedAt: plan.createdAt as unknown as Date,
+    placeProvider: plan.placeProvider ?? null,
+    placeId: plan.placeId ?? null,
+  };
+}
+
+/**
  * The demo's `GET /member-travel/locations` answer: the viewer's own
  * travel wheres across the demo's trips, ranked by the API's own rule
  * (`rankTravelLocations` — newest first, deduped case-insensitively,
@@ -276,7 +309,8 @@ export function createDemoStore(trips: DemoTrip[]): DemoStore {
     payments: new Map(),
     sharePhone: new Map(),
     notifications: new Map(),
-    counters: { event: 0, stay: 0, travel: 0, payment: 0 },
+    savedPlaces: new Map(),
+    counters: { event: 0, stay: 0, travel: 0, payment: 0, savedPlace: 0 },
   };
   for (const trip of trips) {
     store.events.set(
@@ -295,6 +329,10 @@ export function createDemoStore(trips: DemoTrip[]): DemoStore {
     // The ledger, seeded after the roster because every name on a
     // payment comes off it — `seedLedger` carries the reasoning.
     seedLedger(store, trip);
+    store.savedPlaces.set(
+      trip.id,
+      trip.savedPlaces.map((plan) => savedPlaceRow(trip.id, plan)),
+    );
     store.sharePhone.set(trip.id, true);
     store.notifications.set(trip.id, { dailyItinerary: true, tripMessages: true });
   }
@@ -321,6 +359,66 @@ export function buildDemoStore(today: Date = new Date()): DemoStore {
 
 function tripOf(store: DemoStore, tripId: string): DemoTrip | undefined {
   return store.trips.find((trip) => trip.id === tripId);
+}
+
+/** The instant a demo row carries — the fixtures write ISO strings (`ledger.ts`'s reading). */
+function stampOf(value: unknown): string {
+  return typeof value === "string" ? value : (value as Date).toISOString();
+}
+
+/**
+ * The trip's saved places as `GET /trips/:id/saved-places` serves
+ * them: pinned first, then newest first — the server's own contract,
+ * which the client's stable partition (`orderedPlaces`) never
+ * re-sorts against.
+ */
+function savedPlacesAsRead(
+  store: DemoStore,
+  tripId: string,
+): DemoSavedPlaceRow[] {
+  return (store.savedPlaces.get(tripId) ?? [])
+    .slice()
+    .sort((a, b) => {
+      if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
+      return stampOf(b.createdAt).localeCompare(stampOf(a.createdAt));
+    });
+}
+
+/** The demo session's user id — the one account the demo signs in as. */
+const DEMO_VIEWER_USER_ID = "demo-viewer";
+
+/**
+ * The author, or anybody running the trip: the API's own rule for a
+ * saved-place write (`canEditSavedPlace`), which the detail dialog
+ * mirrors for its Edit verb.
+ */
+function viewerCanEditSavedPlace(
+  store: DemoStore,
+  row: DemoSavedPlaceRow,
+): boolean {
+  if (row.createdBy === DEMO_VIEWER_USER_ID) return true;
+  const trip = tripOf(store, row.tripId);
+  return (
+    trip?.members.some(
+      (member) => member.isOrganizer && member.userId === DEMO_VIEWER_USER_ID,
+    ) ?? false
+  );
+}
+
+/**
+ * Whether this trip's organizer is the demo's viewer. It never is —
+ * the fixture traveler is on nobody's list as the organizer — so the
+ * pin verbs answer 403 here exactly as the API would for a member who
+ * is not running the trip, and the detail dialog (which gates the pin
+ * control on `isOrganizer` anyway) never fires them.
+ */
+function viewerIsOrganizer(store: DemoStore, tripId: string): boolean {
+  const trip = tripOf(store, tripId);
+  return (
+    trip?.members.some(
+      (member) => member.isOrganizer && member.userId === DEMO_VIEWER_USER_ID,
+    ) ?? false
+  );
 }
 
 /**
@@ -792,6 +890,74 @@ export function handleDemoRequest(
       store.travel.get(tripId)?.push(row);
       return { status: 201, body: { success: true, memberTravel: row } };
     }
+    if (verb === "GET" && rest === "/saved-places") {
+      if (!trip) return notFound("Trip not found");
+      return {
+        status: 200,
+        body: { success: true, savedPlaces: savedPlacesAsRead(store, tripId) },
+      };
+    }
+    if (verb === "POST" && rest === "/saved-places") {
+      if (!trip) return notFound("Trip not found");
+      const name =
+        typeof body.name === "string" && body.name.trim() !== ""
+          ? body.name
+          : null;
+      if (!name) {
+        return {
+          status: 400,
+          body: {
+            success: false,
+            error: { code: "BAD_REQUEST", message: "Name is required" },
+          },
+        };
+      }
+      // The pair a linked pick carries, and the trip's own duplicate
+      // rule: a pair the same saver already filed here is a 409, which
+      // the form answers in place under Where. Typed words carry no
+      // pair and can never collide.
+      const placeId =
+        typeof body.placeId === "string" && body.placeId !== ""
+          ? body.placeId
+          : null;
+      if (placeId) {
+        const duplicate = (store.savedPlaces.get(tripId) ?? []).find(
+          (row) =>
+            row.createdBy === DEMO_VIEWER_USER_ID && row.placeId === placeId,
+        );
+        if (duplicate) {
+          return {
+            status: 409,
+            body: {
+              success: false,
+              error: {
+                code: "SAVED_PLACE_DUPLICATE",
+                message: "This place is already saved to this trip.",
+              },
+            },
+          };
+        }
+      }
+      store.counters.savedPlace += 1;
+      const row: DemoSavedPlaceRow = {
+        id: `demo-sp-${store.counters.savedPlace}`,
+        tripId,
+        createdBy: DEMO_VIEWER_USER_ID,
+        name,
+        address: typeof body.address === "string" ? body.address : null,
+        notes:
+          typeof body.notes === "string" ? body.notes : null,
+        placeType: asEventType(body.placeType),
+        place: null,
+        isPinned: false,
+        createdAt: nowIso() as unknown as Date,
+        updatedAt: nowIso() as unknown as Date,
+        placeProvider: placeId ? "google" : null,
+        placeId,
+      };
+      store.savedPlaces.get(tripId)?.push(row);
+      return { status: 201, body: { success: true, savedPlace: row } };
+    }
   }
 
   const eventMatch = /^\/(events)\/([^/]+)$/.exec(path);
@@ -867,6 +1033,109 @@ export function handleDemoRequest(
     }
     if (verb === "DELETE") {
       found.list.splice(found.list.indexOf(found.row), 1);
+      return { status: 200, body: { success: true } };
+    }
+  }
+
+  const savedPlaceMatch = /^\/saved-places\/([^/]+?)(\/pin)?$/.exec(path);
+  if (savedPlaceMatch) {
+    const id = decodeURIComponent(savedPlaceMatch[1]!);
+    const isPin = savedPlaceMatch[2] === "/pin";
+    // The row is resolved before the verb is read, as the payment route
+    // always did: an id nothing addresses answers the same 404 whatever
+    // the method is.
+    const found = findRowAnywhere(store.savedPlaces, id);
+    if (!found) return notFound("Saved place not found");
+    const row = found.row;
+
+    if (isPin) {
+      // The pin is the organizer's alone, on both verbs — the API's own
+      // rule, which the detail dialog mirrors by gating the control on
+      // `isOrganizer` before it can be reached.
+      if (!viewerIsOrganizer(store, row.tripId)) {
+        return forbidden("Only the trip's organizer can pin places");
+      }
+      if (verb === "POST") {
+        row.isPinned = body.pinned !== false;
+        row.updatedAt = nowIso() as unknown as Date;
+        return { status: 200, body: { success: true, savedPlace: row } };
+      }
+      if (verb === "DELETE") {
+        row.isPinned = false;
+        row.updatedAt = nowIso() as unknown as Date;
+        return { status: 200, body: { success: true, savedPlace: row } };
+      }
+    }
+
+    if (verb === "PUT") {
+      if (!viewerCanEditSavedPlace(store, row)) {
+        return forbidden(
+          "Only the place's author or the trip's organizer can edit it",
+        );
+      }
+      // The three-way pair: a key present in the body is written
+      // (explicit null clears), absent leaves the column untouched.
+      // The client's edit restates the pair whole — a re-pick carries
+      // its pair, a retype sends both nulls — and the scalars ride the
+      // same rule.
+      if (typeof body.name === "string" && body.name.trim() !== "") {
+        row.name = body.name;
+      }
+      if (body.address !== undefined) {
+        row.address = typeof body.address === "string" ? body.address : null;
+      }
+      if (body.notes !== undefined) {
+        row.notes = typeof body.notes === "string" ? body.notes : null;
+      }
+      if (typeof body.placeType === "string") {
+        row.placeType = asEventType(body.placeType);
+      }
+      const pairStated =
+        body.placeId !== undefined || body.placeProvider !== undefined;
+      if (pairStated) {
+        const placeId =
+          typeof body.placeId === "string" && body.placeId !== ""
+            ? body.placeId
+            : null;
+        if (placeId) {
+          // The same duplicate rule the create route runs: a pair the
+          // same saver already holds on another row here is a 409, and
+          // the form answers it under Where exactly as it does a
+          // create's.
+          const duplicate = (store.savedPlaces.get(row.tripId) ?? []).find(
+            (other) =>
+              other.id !== row.id &&
+              other.createdBy === row.createdBy &&
+              other.placeId === placeId,
+          );
+          if (duplicate) {
+            return {
+              status: 409,
+              body: {
+                success: false,
+                error: {
+                  code: "SAVED_PLACE_DUPLICATE",
+                  message: "This place is already saved to this trip.",
+                },
+              },
+            };
+          }
+        }
+        row.placeId = placeId;
+        row.placeProvider = placeId ? "google" : null;
+      }
+      // The row's original creator never changes — there is no body
+      // key that could move it, and none is read.
+      row.updatedAt = nowIso() as unknown as Date;
+      return { status: 200, body: { success: true, savedPlace: row } };
+    }
+    if (verb === "DELETE") {
+      if (!viewerCanEditSavedPlace(store, row)) {
+        return forbidden(
+          "Only the place's author or the trip's organizer can delete it",
+        );
+      }
+      found.list.splice(found.list.indexOf(row), 1);
       return { status: 200, body: { success: true } };
     }
   }

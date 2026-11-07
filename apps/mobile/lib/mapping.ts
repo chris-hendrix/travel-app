@@ -16,6 +16,7 @@ import type { Profile } from "@/lib/profile";
 import type { Stay } from "@/lib/stays";
 import type { MockTravel } from "@/mocks/travel";
 import type { BalanceMove, Payment } from "@/lib/payments";
+import type { SavedPlace } from "@/lib/saved-places";
 import type {
   Accommodation,
   BalanceEntry as ApiBalanceEntry,
@@ -24,6 +25,7 @@ import type {
   MemberWithProfile,
   Notification as ApiNotification,
   Payment as ApiPayment,
+  SavedPlace as ApiSavedPlace,
   TripDetail,
   TripSummary,
   User,
@@ -146,6 +148,39 @@ export function toEvent(event: Event): ItineraryEvent {
     photoSourceUri: cover.photoSourceUri,
     photoCredit: placePhotoCredit(event.place ?? null),
     deletedAt: deletedAtOf(event.deletedAt),
+  };
+}
+
+/**
+ * An API saved place onto the mobile `SavedPlace`: `placeType` -> `type`.
+ *
+ * The entity carries `createdBy` (a user id) and no name at all, so the
+ * name is handed over in args — the roster lookup lives with the caller
+ * (`useSavedPlaces` resolves it per render off the cached roster), not
+ * the pure mapper. The photo triple follows `toEvent` exactly: the
+ * linked place's resolved view, null when the words were typed.
+ * `isPinned` crosses as-is — the wire has no `pinnedAt` (Task 5).
+ */
+export function toSavedPlace(
+  place: ApiSavedPlace,
+  creatorName = "",
+): SavedPlace {
+  const cover = coverImage({ place: place.place, id: place.id });
+  return {
+    id: place.id,
+    tripId: place.tripId,
+    createdBy: place.createdBy,
+    creatorName,
+    name: place.name,
+    address: place.address,
+    type: place.placeType,
+    notes: place.notes,
+    isPinned: place.isPinned,
+    createdAt: iso(place.createdAt),
+    placeId: place.place?.placeId ?? null,
+    image: cover.url,
+    photoSourceUri: cover.photoSourceUri,
+    photoCredit: placePhotoCredit(place.place ?? null),
   };
 }
 

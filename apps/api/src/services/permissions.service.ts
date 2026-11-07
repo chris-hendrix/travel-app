@@ -4,6 +4,7 @@ import {
   events,
   accommodations,
   memberTravel,
+  savedPlaces,
   mutedMembers,
 } from "@/db/schema/index.js";
 import { eq, and, or, isNull } from "drizzle-orm";
@@ -256,6 +257,44 @@ export interface IPermissionsService {
     userId: string,
     memberTravelData: { tripId: string; memberId: string },
   ): Promise<boolean>;
+
+  /**
+   * Checks if a user can add a saved place to a trip
+   * Any member (with any status) can add a saved place
+   * @param userId - The UUID of the user to check
+   * @param tripId - The UUID of the trip to check
+   * @returns Promise that resolves to true if user can add a saved place, false otherwise
+   */
+  canAddSavedPlace(userId: string, tripId: string): Promise<boolean>;
+
+  /**
+   * Checks if a user can edit a saved place
+   * A user can edit a saved place if they are:
+   * 1. The author (createdBy = userId), OR
+   * 2. An organizer of the trip
+   * @param userId - The UUID of the user to check
+   * @param savedPlaceId - The UUID of the saved place to check
+   * @returns Promise that resolves to true if user can edit the saved place, false otherwise
+   */
+  canEditSavedPlace(userId: string, savedPlaceId: string): Promise<boolean>;
+
+  /**
+   * Checks if a user can delete a saved place
+   * Delegates to canEditSavedPlace - same permission rules apply
+   * @param userId - The UUID of the user to check
+   * @param savedPlaceId - The UUID of the saved place to check
+   * @returns Promise that resolves to true if user can delete the saved place, false otherwise
+   */
+  canDeleteSavedPlace(userId: string, savedPlaceId: string): Promise<boolean>;
+
+  /**
+   * Checks if a user can pin a saved place in a trip
+   * Only organizers can pin saved places
+   * @param userId - The UUID of the user to check
+   * @param tripId - The UUID of the trip to check
+   * @returns Promise that resolves to true if user can pin saved places, false otherwise
+   */
+  canPinSavedPlace(userId: string, tripId: string): Promise<boolean>;
 
   /**
    * Gets membership info for a user in a trip in a single query
@@ -786,6 +825,71 @@ export class PermissionsService implements IPermissionsService {
     memberTravelData: { tripId: string; memberId: string },
   ): Promise<boolean> {
     return this.canEditMemberTravelWithData(userId, memberTravelData);
+  }
+
+  /**
+   * Helper method to get the tripId and author for a saved place
+   * @param savedPlaceId - The UUID of the saved place
+   * @returns tripId and createdBy if the saved place exists, null otherwise
+   */
+  private async getSavedPlaceTripAndAuthor(
+    savedPlaceId: string,
+  ): Promise<{ tripId: string; createdBy: string } | null> {
+    const result = await this.db
+      .select({ tripId: savedPlaces.tripId, createdBy: savedPlaces.createdBy })
+      .from(savedPlaces)
+      .where(eq(savedPlaces.id, savedPlaceId))
+      .limit(1);
+
+    return result.length > 0 ? result[0]! : null;
+  }
+
+  /**
+   * Checks if a user can add a saved place to a trip
+   * Any member (with any status) can add a saved place
+   */
+  async canAddSavedPlace(userId: string, tripId: string): Promise<boolean> {
+    return this.isMember(userId, tripId);
+  }
+
+  /**
+   * Checks if a user can edit a saved place
+   * A user can edit if they are the author OR an organizer of the trip
+   */
+  async canEditSavedPlace(
+    userId: string,
+    savedPlaceId: string,
+  ): Promise<boolean> {
+    const place = await this.getSavedPlaceTripAndAuthor(savedPlaceId);
+    if (!place) {
+      return false;
+    }
+
+    // Author can always edit their own saved place
+    if (place.createdBy === userId) {
+      return true;
+    }
+
+    return this.isOrganizer(userId, place.tripId);
+  }
+
+  /**
+   * Checks if a user can delete a saved place
+   * Uses same logic as canEditSavedPlace
+   */
+  async canDeleteSavedPlace(
+    userId: string,
+    savedPlaceId: string,
+  ): Promise<boolean> {
+    return this.canEditSavedPlace(userId, savedPlaceId);
+  }
+
+  /**
+   * Checks if a user can pin a saved place in a trip
+   * Only organizers can pin saved places
+   */
+  async canPinSavedPlace(userId: string, tripId: string): Promise<boolean> {
+    return this.isOrganizer(userId, tripId);
   }
 
   /**

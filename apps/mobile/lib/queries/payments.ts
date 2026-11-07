@@ -4,13 +4,13 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
-  type QueryClient,
 } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 import { toPayment } from "@/lib/mapping";
 import { isOffline } from "@/lib/queries/errors";
 import { memberKeys } from "@/lib/queries/members";
 import { invalidateTripMoney, paymentKeys } from "@/lib/queries/moneyKeys";
+import { optimistically, rollBack } from "./optimistic";
 import { previewShares, type Payment, type SplitScope } from "@/lib/payments";
 import type { Member } from "@/lib/members";
 import type { Payment as ApiPayment } from "@journiful/shared/types";
@@ -339,47 +339,6 @@ function temporaryPayment(
 }
 
 /**
- * The optimistic half every money write shares: cancel whatever is in
- * flight, snapshot the list, paint, and hand the snapshot back for the
- * rollback.
- *
- * All three writes below need exactly this, and the rollback is where
- * copies would drift — a hook that forgot `cancelQueries` would let a
- * late refetch land on top of its paint, and no test here would see it.
- * So the mechanics live once and each write supplies only its own paint.
- */
-async function optimistically(
-  queryClient: QueryClient,
-  tripId: string,
-  paint: (rows: Payment[]) => Payment[],
-): Promise<{ previous: Payment[] | undefined }> {
-  await queryClient.cancelQueries({ queryKey: paymentKeys.list(tripId) });
-  const previous = queryClient.getQueryData<Payment[]>(
-    paymentKeys.list(tripId),
-  );
-
-  queryClient.setQueryData<Payment[]>(paymentKeys.list(tripId), (old) =>
-    paint(old ?? []),
-  );
-
-  return { previous };
-}
-
-/** Put the snapshot back. A no-op when there was no list to begin with. */
-function rollBack(
-  queryClient: QueryClient,
-  tripId: string,
-  context: { previous: Payment[] | undefined } | undefined,
-): void {
-  if (context?.previous !== undefined) {
-    queryClient.setQueryData<Payment[]>(
-      paymentKeys.list(tripId),
-      context.previous,
-    );
-  }
-}
-
-/**
  * The create half: a temporary row is painted into the list, swapped
  * for the server's row on success (the server assigns the real id and
  * the real shares), and removed on failure. The settle funnels through
@@ -413,10 +372,11 @@ export function useCreatePayment(tripId: string) {
         existing,
       );
 
-      const context = await optimistically(queryClient, tripId, (rows) => [
-        temporary,
-        ...rows,
-      ]);
+      const context = await optimistically<Payment>(
+        queryClient,
+        paymentKeys.list(tripId),
+        (rows) => [temporary, ...rows],
+      );
 
       return { ...context, temporaryId: temporary.id };
     },
@@ -428,7 +388,7 @@ export function useCreatePayment(tripId: string) {
       );
     },
     onError: (_error: unknown, _input, context) =>
-      rollBack(queryClient, tripId, context),
+      rollBack<Payment>(queryClient, paymentKeys.list(tripId), context),
     onSettled: () => {
       void invalidateTripMoney(queryClient, tripId);
     },
@@ -512,14 +472,19 @@ export function useUpdatePayment(tripId: string) {
       const roster =
         queryClient.getQueryData<Member[]>(memberKeys.list(tripId)) ?? [];
 
-      return optimistically(queryClient, tripId, (rows) =>
-        rows.map((row) =>
-          row.id === paymentId ? { ...row, ...patchFrom(input, roster) } : row,
-        ),
+      return optimistically<Payment>(
+        queryClient,
+        paymentKeys.list(tripId),
+        (rows) =>
+          rows.map((row) =>
+            row.id === paymentId
+              ? { ...row, ...patchFrom(input, roster) }
+              : row,
+          ),
       );
     },
     onError: (_error: unknown, _variables, context) =>
-      rollBack(queryClient, tripId, context),
+      rollBack<Payment>(queryClient, paymentKeys.list(tripId), context),
     onSettled: () => {
       void invalidateTripMoney(queryClient, tripId);
     },
@@ -541,11 +506,11 @@ export function useDeletePayment(tripId: string) {
     mutationFn: ({ paymentId }: { paymentId: string }) =>
       deletePayment(paymentId),
     onMutate: async ({ paymentId }: { paymentId: string }) =>
-      optimistically(queryClient, tripId, (rows) =>
+      optimistically<Payment>(queryClient, paymentKeys.list(tripId), (rows) =>
         rows.filter((row) => row.id !== paymentId),
       ),
     onError: (_error: unknown, _variables, context) =>
-      rollBack(queryClient, tripId, context),
+      rollBack<Payment>(queryClient, paymentKeys.list(tripId), context),
     onSettled: () => {
       void invalidateTripMoney(queryClient, tripId);
     },

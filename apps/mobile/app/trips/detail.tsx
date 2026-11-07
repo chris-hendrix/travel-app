@@ -378,7 +378,7 @@ function TripDetailScreen({ coverKind }: { coverKind: PlaceholderKind }) {
               <PlaceLink label={trip.location} placeId={trip.placeId ?? null} />
               {/* Who is coming, and when: the roll call and the travel
                   board are two doors to two questions, side by side. */}
-              <View className="flex-row items-center gap-2">
+              <View className="flex-row flex-wrap items-center gap-2">
                 <QuietAction
                   label={`${trip.going} going`}
                   onPress={() =>
@@ -429,6 +429,11 @@ function TripDetailScreen({ coverKind }: { coverKind: PlaceholderKind }) {
                 <QuietAction
                   label="Settle"
                   onPress={() => router.push(`/trips/settle?id=${trip.id}`)}
+                />
+                <Text className="font-body text-sm text-ink">·</Text>
+                <QuietAction
+                  label="Places"
+                  onPress={() => router.push(`/trips/places?id=${trip.id}`)}
                 />
               </View>
             </View>

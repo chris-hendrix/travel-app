@@ -1,5 +1,6 @@
 import { DEMO_AUTH_USER, DEMO_VIEWER_MEMBER_ID, atClock, userIdOf } from "@/lib/demo/fixture";
 import type { DemoPayment } from "@/lib/demo/money";
+import type { SavedPlace } from "@journiful/shared/types";
 import { bachelorLedger, caboLedger, weddingLedger } from "@/lib/demo/money";
 import type { ItineraryEvent } from "@/lib/itinerary";
 import type { Member } from "@/lib/members";
@@ -64,6 +65,34 @@ export type DemoTrip = {
   travel: MockTravel[];
   /** The trip's ledger: what the Settle sheet's three reads are computed from. */
   payments: DemoPayment[];
+  /** The Places door's shelf: what `GET /trips/:id/saved-places` serves. */
+  savedPlaces: DemoSavedPlace[];
+};
+
+/**
+ * One saved place in the fixture's own shorthand, in the ledger's
+ * (`DemoPayment`) pattern: the fields a stored row states and nothing
+ * more. The wire it becomes is the shared `SavedPlace` — the adapter's
+ * row builder fills `tripId` and degrades `place` to `null` (the real
+ * server's attach does the same without a cache), while the Google
+ * pair a linked row carries rides along as the pair of columns the
+ * duplicate rule reads.
+ */
+export type DemoSavedPlace = {
+  id: string;
+  /** A **user** id — `userIdOf(memberId)`, never the member id itself. */
+  createdBy: string;
+  name: string;
+  address: string | null;
+  /** Invented prose so the detail sheet's note renders, when the row has any. */
+  notes: string | null;
+  placeType: SavedPlace["placeType"];
+  /** The Google pair behind a linked row: a `DEMO_PLACES` id (adapter.ts), absent for a typed word. */
+  placeProvider?: "google" | null;
+  placeId?: string | null;
+  isPinned: boolean;
+  /** Noon-anchored, inside the trip's own window (`atClock`). */
+  createdAt: string;
 };
 
 /** The demo trip's id: the landing's first `/demo?id=…` link carries it. */
@@ -181,6 +210,46 @@ function guest(id: string, name: string): Member {
     phone: "",
     sharePhone: false,
     handles: null,
+  };
+}
+
+/**
+ * One saved place on the trip's shelf, in the ledger's own pattern: the
+ * scalars positionally, the optional prose and the Google pair in the
+ * options. `createdBy` is a **user** id — `userIdOf(memberId)`, the
+ * space the roster join keys on — and a guest (no account behind the
+ * row) cannot be a saver, which is the API's own shape and not a
+ * limitation this fixture needs to soften.
+ */
+function savedPlace(
+  id: string,
+  name: string,
+  placeType: DemoSavedPlace["placeType"],
+  /** A **user** id — `userIdOf(memberId)`, never the member id itself. */
+  createdBy: string,
+  /** A day inside the trip's window; the row is stamped at that clock on it. */
+  dayIso: string,
+  clock: string,
+  options: {
+    address?: string;
+    notes?: string;
+    /** A linked row's `DEMO_PLACES` id (adapter.ts), whose name and address the row restates — the stored words ARE the snapshot. */
+    placeId?: string;
+    isPinned?: boolean;
+  } = {},
+): DemoSavedPlace {
+  return {
+    id,
+    name,
+    placeType,
+    createdBy,
+    isPinned: options.isPinned ?? false,
+    createdAt: atClock(dayIso, clock),
+    address: options.address ?? null,
+    notes: options.notes ?? null,
+    ...(options.placeId
+      ? { placeProvider: "google" as const, placeId: options.placeId }
+      : {}),
   };
 }
 
@@ -390,6 +459,80 @@ export function buildDemoTrip(today: Date = new Date()): DemoTrip {
   ];
 
   const payments = caboLedger({ startDate, saturday, sunday, monday });
+
+  // The Places door's shelf. Mostly typed words by members — the honest
+  // case, a place with no Maps listing to link ("The beach behind the
+  // house") — plus two rows carrying the same Google pair the events'
+  // snapshots use, so the demo stays one fiction. Savers are three
+  // different people plus Sam, and the one pinned row is Sam's: the pin
+  // is the organizer's verb, and the fixture's organizer chose the
+  // farewell dinner. The other two trips pin nothing, so the Pinned
+  // chip reads both ways across the landing's cards.
+  const savedPlaces: DemoSavedPlace[] = [
+    savedPlace(
+      "demo-sp-cabo-beach",
+      "The beach behind the house",
+      "outdoors",
+      userIdOf(DEMO_VIEWER_MEMBER_ID),
+      saturday,
+      "09:00",
+      {
+        notes:
+          "Left out the side gate, turn right, down the steps. The palapa is the landmark for meeting up.",
+      },
+    ),
+    savedPlace(
+      "demo-sp-cabo-paisa",
+      "Taquería El Paisa",
+      "food_and_drink",
+      userIdOf("demo-liz"),
+      saturday,
+      "21:45",
+      {
+        address: "Boulevard Lázaro Cárdenas, Cabo San Lucas, BCS, Mexico",
+        placeId: "demo-place-el-paisa",
+      },
+    ),
+    savedPlace(
+      "demo-sp-cabo-solomons",
+      "Solomon's Landing",
+      "food_and_drink",
+      userIdOf("demo-sam"),
+      monday,
+      "20:30",
+      {
+        address: "Blvd. Paseo de la Marina, Cabo San Lucas, BCS, Mexico",
+        placeId: "demo-place-solomons-landing",
+        isPinned: true,
+        notes:
+          "Sam's pick for the last night — ask for the long table on the water side.",
+      },
+    ),
+    savedPlace(
+      "demo-sp-cabo-switchback",
+      "Switchback path from the marina",
+      "outdoors",
+      userIdOf("demo-marco"),
+      sunday,
+      "07:30",
+      {
+        notes:
+          "Marco's morning run: up the switchbacks behind the marina, twenty minutes up, quicker down.",
+      },
+    ),
+    savedPlace(
+      "demo-sp-cabo-coffee",
+      "The coffee stand by the marina gate",
+      "food_and_drink",
+      userIdOf("demo-liz"),
+      sunday,
+      "08:15",
+      {
+        notes: "Cash only, opens at seven. The cortado is the one.",
+      },
+    ),
+  ];
+
   return {
     id: DEMO_TRIP_ID,
     title: "Cabo",
@@ -404,6 +547,7 @@ export function buildDemoTrip(today: Date = new Date()): DemoTrip {
     events,
     travel,
     payments,
+    savedPlaces,
   };
 }
 
@@ -523,6 +667,50 @@ export function buildDemoWeddingTrip(today: Date = new Date()): DemoTrip {
   ];
 
   const payments = weddingLedger({ startDate, monday });
+
+  // The wedding's shelf: one typed word each from the viewer and Priya,
+  // and the ceremony venue linked — the same pair the ceremony's own
+  // snapshot carries. Nobody pins: the Pinned chip stays hidden on this
+  // card, which is half of why the fixture pins exactly one row total.
+  const savedPlaces: DemoSavedPlace[] = [
+    savedPlace(
+      "demo-sp-wed-mezcal",
+      "The mezcal shop on the plaza",
+      "shopping",
+      userIdOf(`${DEMO_VIEWER_MEMBER_ID}-wed`),
+      startDate,
+      "11:00",
+      {
+        notes:
+          "The corner one by the church — they let you taste before you buy. The bottles go in the checked bag.",
+      },
+    ),
+    savedPlace(
+      "demo-sp-wed-hacienda",
+      "Hotel Hacienda Todos Los Santos",
+      "arts_and_entertainment",
+      userIdOf("demo-wed-dev"),
+      sunday,
+      "15:00",
+      {
+        address: "Benito Juárez, Todos Santos, BCS, Mexico",
+        placeId: "demo-place-hacienda-todos-santos",
+      },
+    ),
+    savedPlace(
+      "demo-sp-wed-turtles",
+      "The turtle hatchery by the old lighthouse",
+      "outdoors",
+      userIdOf("demo-wed-priya"),
+      monday,
+      "08:00",
+      {
+        notes:
+          "Priya found it on the last trip: sunrise release, a donation box, no booking. A taxi ride past the hotel.",
+      },
+    ),
+  ];
+
   return {
     id: DEMO_TRIP_WEDDING_ID,
     title: "Priya & Dev's wedding",
@@ -537,6 +725,7 @@ export function buildDemoWeddingTrip(today: Date = new Date()): DemoTrip {
     events,
     travel,
     payments,
+    savedPlaces,
   };
 }
 
@@ -681,6 +870,63 @@ export function buildDemoBachelorTrip(today: Date = new Date()): DemoTrip {
   ];
 
   const payments = bachelorLedger({ startDate, saturday, sunday });
+
+  // The bachelor party's shelf, same mix as Cabo's: two linked rows off
+  // the events' own snapshots and two typed words, one of them the
+  // rental's fire pit — the honest typed case, a thing no Maps listing
+  // exists for. Nobody pins; the organizer's pick (Petco) is linked but
+  // unpinned, so the chip the demo shows lives on the Cabo card alone.
+  const savedPlaces: DemoSavedPlace[] = [
+    savedPlace(
+      "demo-sp-bach-firepit",
+      "The fire pit at Wavecrest",
+      "nightlife",
+      userIdOf(`${DEMO_VIEWER_MEMBER_ID}-bac`),
+      startDate,
+      "22:00",
+      {
+        notes:
+          "The good chairs are the striped ones. Wood is in the garage — the code is the house code.",
+      },
+    ),
+    savedPlace(
+      "demo-sp-bach-petco",
+      "Petco Park",
+      "arts_and_entertainment",
+      userIdOf("demo-bach-marco"),
+      saturday,
+      "12:30",
+      {
+        address: "100 Park Blvd, San Diego, CA, USA",
+        placeId: "demo-place-petco-park",
+      },
+    ),
+    savedPlace(
+      "demo-sp-bach-greystone",
+      "Greystone Steakhouse",
+      "food_and_drink",
+      userIdOf("demo-bach-dev"),
+      saturday,
+      "22:30",
+      {
+        address: "658 5th Ave, San Diego, CA, USA",
+        placeId: "demo-place-greystone",
+      },
+    ),
+    savedPlace(
+      "demo-sp-bach-cliff",
+      "The cliff walk at sunset",
+      "outdoors",
+      userIdOf("demo-bach-sam"),
+      saturday,
+      "07:00",
+      {
+        notes:
+          "Sam's morning plan: north along Ocean Front Walk until the stairs, back along the boardwalk.",
+      },
+    ),
+  ];
+
   return {
     id: DEMO_TRIP_BACHELOR_ID,
     title: "Dev's bachelor party",
@@ -695,6 +941,7 @@ export function buildDemoBachelorTrip(today: Date = new Date()): DemoTrip {
     events,
     travel,
     payments,
+    savedPlaces,
   };
 }
 

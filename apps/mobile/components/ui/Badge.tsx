@@ -7,18 +7,21 @@ export type BadgeVariant =
   | "live"
   | "soldOut"
   | "category"
+  | "pinned"
   | "outline"
   | "venue";
 
 /**
- * Roles, not colours: two roles may share a tone — a thing that is over
- * and a thing that is categorised are both said in ink.
+ * Roles, not colours: three roles share a tone — a thing that is over,
+ * a thing that is categorised, and a thing the viewer pinned are all
+ * said in ink.
  */
 const STYLES: Record<BadgeVariant, { box: string; label: string }> = {
   club: { box: "bg-watermelon", label: "text-ink" },
   live: { box: "bg-strawberry", label: "text-ink" },
   soldOut: { box: "bg-ink", label: "text-sand" },
   category: { box: "bg-ink", label: "text-sand" },
+  pinned: { box: "bg-ink", label: "text-sand" },
   outline: { box: "border border-ink", label: "text-ink" },
   venue: { box: "bg-transparent", label: "text-ink" },
 };

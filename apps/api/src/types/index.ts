@@ -11,6 +11,7 @@ import type { IPermissionsService } from "@/services/permissions.service.js";
 import type { IEventService } from "@/services/event.service.js";
 import type { IAccommodationService } from "@/services/accommodation.service.js";
 import type { IMemberTravelService } from "@/services/member-travel.service.js";
+import type { ISavedPlaceService } from "@/services/saved-place.service.js";
 import type { IUploadService } from "@/services/upload.service.js";
 import type { ISMSService } from "@/services/sms.service.js";
 import type { IVerificationService } from "@/services/verification.service.js";
@@ -83,6 +84,7 @@ declare module "fastify" {
     eventService: IEventService;
     accommodationService: IAccommodationService;
     memberTravelService: IMemberTravelService;
+    savedPlaceService: ISavedPlaceService;
     uploadService: IUploadService;
     smsService: ISMSService;
     verificationService: IVerificationService;

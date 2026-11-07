@@ -22,7 +22,21 @@ import type {
   MemberTravel,
   MemberWithProfile,
   Payment,
+  SavedPlace,
 } from "@journiful/shared/types";
+
+/**
+ * One stored saved place: the wire's `SavedPlace` plus the Google pair
+ * the server keeps as its own two columns. The demo serves `place` as
+ * `null` — the real attach degrades to null without a cache, so the
+ * wire read matches reality — but the duplicate rule (a pair one
+ * person already saved to the trip) still has to read *something*, so
+ * the pair lives beside the row exactly as a column pair would.
+ */
+export type DemoSavedPlaceRow = SavedPlace & {
+  placeProvider: "google" | null;
+  placeId: string | null;
+};
 
 export type DemoStore = {
   trips: DemoTrip[];
@@ -36,7 +50,14 @@ export type DemoStore = {
     string,
     { dailyItinerary: boolean; tripMessages: boolean }
   >;
-  counters: { event: number; stay: number; travel: number; payment: number };
+  savedPlaces: Map<string, DemoSavedPlaceRow[]>;
+  counters: {
+    event: number;
+    stay: number;
+    travel: number;
+    payment: number;
+    savedPlace: number;
+  };
 };
 
 /** A parsed request body: handlers read the fields they expect off it. */
@@ -50,6 +71,14 @@ export function notFound(message: string): { status: 404; body: DemoBody } {
   return {
     status: 404,
     body: { success: false, error: { code: "NOT_FOUND", message } },
+  };
+}
+
+/** The 403 envelope, beside the 404: the ApiError reads the same shape. */
+export function forbidden(message: string): { status: 403; body: DemoBody } {
+  return {
+    status: 403,
+    body: { success: false, error: { code: "FORBIDDEN", message } },
   };
 }
 
