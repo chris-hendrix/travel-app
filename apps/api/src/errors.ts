@@ -146,6 +146,20 @@ export const MemberTravelConflictError = createError(
   409,
 );
 
+// Saved place errors
+// The duplicate code is the contract Task 5's routes surface: a member
+// saving the same Google place twice answers 409 with this code.
+export const SavedPlaceNotFoundError = createError(
+  "SAVED_PLACE_NOT_FOUND",
+  "Saved place not found",
+  404,
+);
+export const SavedPlaceDuplicateError = createError(
+  "SAVED_PLACE_DUPLICATE",
+  "%s",
+  409,
+);
+
 // Messaging errors
 export const MessageNotFoundError = createError(
   "MESSAGE_NOT_FOUND",
