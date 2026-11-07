@@ -313,32 +313,26 @@ export function legFromLookup(
   timeZone: string | null,
 ): TravelLeg {
   const filled = applyFlightLookup(direction, result, flightNumber);
-  const pertinentIso =
-    direction === "arrival" ? filled.arrivalTime : filled.departureTime;
-  const pertinentLocation =
-    direction === "arrival" ? filled.arrivalLocation : filled.departureLocation;
-  const farIso = direction === "arrival" ? filled.departureTime : filled.arrivalTime;
-  const farLocation =
-    direction === "arrival"
-      ? filled.departureLocation
-      : filled.arrivalLocation;
-
-  const pertinent = pertinentIso ? wallClock(pertinentIso, timeZone) : null;
-  const far = farIso ? wallClock(farIso, timeZone) : null;
-  // The lookup carries real instants, so it can state what the two
-  // clocks would otherwise have to be read for.
-  const crossesMidnight =
-    pertinent && far ? pertinent.date !== far.date : null;
-
+  const dep = filled.departureTime ? wallClock(filled.departureTime, timeZone) : null;
+  const arr = filled.arrivalTime ? wallClock(filled.arrivalTime, timeZone) : null;
+  const arrival = direction === "arrival";
+  // The fields are named for the flight, not for the direction; only
+  // the day and which location is near follow the direction.
   return {
     ...leg,
     flightNumber,
-    day: pertinent?.date ?? leg.day,
-    departureTime: far?.clock ?? leg.departureTime,
-    arrivalTime: pertinent?.clock ?? leg.arrivalTime,
-    location: pertinentLocation ?? leg.location,
-    otherLocation: farLocation ?? leg.otherLocation,
-    crossesMidnight,
+    day: (arrival ? arr?.date : dep?.date) ?? leg.day,
+    departureTime: dep?.clock ?? leg.departureTime,
+    arrivalTime: arr?.clock ?? leg.arrivalTime,
+    location:
+      (arrival ? filled.arrivalLocation : filled.departureLocation) ??
+      leg.location,
+    otherLocation:
+      (arrival ? filled.departureLocation : filled.arrivalLocation) ??
+      leg.otherLocation,
+    // The lookup carries real instants, so it can state what the two
+    // clocks would otherwise have to be read for.
+    crossesMidnight: dep && arr ? dep.date !== arr.date : null,
   };
 }
 
