@@ -38,6 +38,13 @@ export const DIALOG_ROUTES = [
   "/trips/settle",
   "/trips/settle/form",
   "/trips/settle/detail",
+  // The saved places and their two dialogs. All three are registered here
+  // even though the form and the detail land behind the same door later:
+  // the list is what says a route is a dialog, and a dialog the shell does
+  // not know wears the app's band above its own title.
+  "/trips/places",
+  "/trips/places/form",
+  "/trips/places/detail",
   "/terms",
   "/privacy",
   "/sms-terms",
