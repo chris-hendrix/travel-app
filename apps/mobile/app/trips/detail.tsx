@@ -426,22 +426,30 @@ function TripDetailScreen({ coverKind }: { coverKind: PlaceholderKind }) {
                   came to look like a word stranded on its own line. The
                   underline is the only affordance a door needs, and a
                   door that drops to a second line now drops the way an
-                  underlined word does, honestly ragged. The row is the
-                  trip's chrome: the same doors, in the same order,
-                  whatever the calendar knows.
+                  underlined word does, honestly ragged. The words run
+                  `tight` — the line is the target, the deviation
+                  `QuietAction`'s own prop note carries — because a
+                  44pt box under every door is what stood a full blank
+                  row between the two lines of a wrapped run, and
+                  `gap-y-1` gives the rows the same small break the
+                  fact lines below take. The row is the trip's chrome:
+                  the same doors, in the same order, whatever the
+                  calendar knows.
 
                   Stay is not here. The live line below is the stay door
                   now — the same target, wearing tonight's name instead of
                   a category — and the rest of the roofs live where they
                   always did, at the head of the run. */}
-              <View className="flex-row flex-wrap items-center gap-x-4">
+              <View className="flex-row flex-wrap items-start gap-x-4 gap-y-1">
                 <QuietAction
+                  tight
                   label={`${trip.going} going`}
                   onPress={() =>
                     router.push(`/trips/members?id=${trip.id}`)
                   }
                 />
                 <QuietAction
+                  tight
                   label="Travel"
                   onPress={() =>
                     router.push(`/trips/travel?id=${trip.id}`)
@@ -456,10 +464,12 @@ function TripDetailScreen({ coverKind }: { coverKind: PlaceholderKind }) {
                     something would be a door nobody could find when
                     they came to record the dinner that made them owe it. */}
                 <QuietAction
+                  tight
                   label="Settle"
                   onPress={() => router.push(`/trips/settle?id=${trip.id}`)}
                 />
                 <QuietAction
+                  tight
                   label="Places"
                   onPress={() => router.push(`/trips/places?id=${trip.id}`)}
                 />
@@ -479,6 +489,7 @@ function TripDetailScreen({ coverKind }: { coverKind: PlaceholderKind }) {
                   today,
                 ) ? (
                   <QuietAction
+                    tight
                     label="Weather"
                     onPress={() =>
                       router.push(`/trips/weather?id=${trip.id}`)
