@@ -200,12 +200,13 @@ test.describe("Weather Journey", () => {
         `**/trips/weather/detail?id=${tripId}&day=${firstDate}`,
         { timeout: NAVIGATION_TIMEOUT },
       );
-      // app/trips/weather/detail.tsx: the title is the day's label
-      // (.last(): the app header echoes the same title in a hidden
-      // element — the trip suite's detail lesson), the hero reads the
-      // date, the facts carry High, and the hourly block runs title-less
-      // like the facts block beside it — its six 12-hour times are the
-      // block's own shape.
+      // app/trips/weather/detail.tsx: the header band says Weather, and
+      // the hero leads with the date over the numeral — the .last()
+      // keeps the assertion on the hero date specifically, should the
+      // word ever appear twice on the screen (the trip suite's detail
+      // lesson). The facts carry High, and the hourly block runs
+      // title-less like the facts block beside it — its six 12-hour
+      // times are the block's own shape.
       await expect(page.getByText(firstLabel).last()).toBeVisible({
         timeout: NAVIGATION_TIMEOUT,
       });
