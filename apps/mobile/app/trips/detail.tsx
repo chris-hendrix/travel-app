@@ -8,6 +8,7 @@ import { PhotoCredit } from "@/components/ui/PhotoCredit";
 import { QuietAction } from "@/components/ui/QuietAction";
 import { LinkedText } from "@/components/ui/LinkedText";
 import { PlaceLink } from "@/components/ui/PlaceLink";
+import { nextEvent } from "@/lib/itinerary";
 import { RsvpControl } from "@/components/trip/RsvpControl";
 import { Itinerary } from "@/components/trip/Itinerary";
 import { RunLocked } from "@/components/trip/RunLocked";
@@ -28,6 +29,10 @@ import { useTravel as useTravelSection } from "@/lib/queries/travel";
 import NotFound from "@/app/+not-found";
 import { useStays } from "@/lib/staysStore";
 import { currentStay } from "@/lib/stays";
+// The events read is shared with the run: the detail screen's live
+// line and the itinerary both read the same query, and react-query
+// dedupes it — the header carries no new request of its own.
+import { useEvents as useEventsSection } from "@/lib/queries/events";
 import { useAuth } from "@/lib/authStore";
 import { useTripSettings } from "@/lib/tripSettingsStore";
 import { viewerOf, goingMembers } from "@/lib/members";
@@ -160,6 +165,10 @@ function TripDetailScreen({ coverKind }: { coverKind: PlaceholderKind }) {
   // the trip above — the header never renders without it, and the
   // viewer stand-in below reads the roster, never a mock.
   const { members } = useMembers(trip?.id);
+  // The events read, hoisted for the mid-trip live line: the same
+  // query the run mounts its own section over, so one read serves
+  // both, and the header waits for nothing the run already loads.
+  const { events } = useEventsSection(trip?.id);
   // The hero asks for the large box on wide layouts: a place photo URL
   // carries its `?size=` segment, so the box swaps there; uploads and
   // placeholders carry none and render unchanged.
@@ -172,13 +181,27 @@ function TripDetailScreen({ coverKind }: { coverKind: PlaceholderKind }) {
   // owns the content; this is the door to it from the top, and it is the
   // live stay — tonight's, or the next to begin — which is the only
   // instance a door called Stay has to stand for.
+  const now = new Date();
   const { clock } = trip
     ? settingsFor(trip)
     : { clock: "trip" as const };
   const timeZone = clock === "trip" ? (trip?.preferredTimezone ?? null) : null;
+  const today = todayIn(timeZone);
   const stay = trip
-    ? currentStay(staysForTrip(trip), todayIn(timeZone), timeZone)
+    ? currentStay(staysForTrip(trip), today, timeZone)
     : undefined;
+
+  // The live line's own calendar: it exists only while the trip is
+  // walkable — no "current" facts about a trip that has not started
+  // and none about one that is over, which is when the reader is
+  // reading a record rather than the now. `startDate` and `endDate`
+  // are required on the trip, so the range is the truth and the
+  // guards are hygiene.
+  const duringTrip = Boolean(
+    trip?.startDate &&
+      (!trip.endDate || trip.endDate >= today) &&
+      trip.startDate <= today,
+  );
 
   if (!trip) {
     return <NotFound />;
@@ -198,6 +221,13 @@ function TripDetailScreen({ coverKind }: { coverKind: PlaceholderKind }) {
   // mounted for them, so there is no request to refuse.
   const canReadRun =
     organizer || viewer?.status === "going";
+
+  // "What is next": the same liveEvents path the run takes, condensed
+  // to one row. Below the door chrome, never instead of it — and it
+  // needs the run's own gate, because who has not answered Going does
+  // not read events at all.
+  const next =
+    duringTrip ? nextEvent(events, timeZone, now) : null;
 
   // Your own travel, filed or not. Filed means a time is on it: a
   // row without one is still owed.
@@ -378,15 +408,24 @@ function TripDetailScreen({ coverKind }: { coverKind: PlaceholderKind }) {
                   app has nothing to add to: Maps has the map. */}
               <PlaceLink label={trip.location} placeId={trip.placeId ?? null} />
               {/* Who is coming, and when: the roll call and the travel
-                  board are two doors to two questions, side by side. */}
-              <View className="flex-row flex-wrap items-center gap-2">
+                  board are two doors to two questions, side by side.
+
+                  Spacing carries the run — the system's middle dot joins
+                  values, and a run of doors wearing them is a sentence
+                  that wraps mid-word, which is how a door called Weather
+                  came to look like a word stranded on its own line. The
+                  underline is the only affordance a door needs, and a
+                  door that drops to a second line now drops the way an
+                  underlined word does, honestly ragged. The row is the
+                  trip's chrome: the same doors, in the same order,
+                  whatever the calendar knows. */}
+              <View className="flex-row flex-wrap items-center gap-x-4">
                 <QuietAction
                   label={`${trip.going} going`}
                   onPress={() =>
                     router.push(`/trips/members?id=${trip.id}`)
                   }
                 />
-                <Text className="font-body text-sm text-ink">·</Text>
                 <QuietAction
                   label="Travel"
                   onPress={() =>
@@ -405,17 +444,14 @@ function TripDetailScreen({ coverKind }: { coverKind: PlaceholderKind }) {
                     The rest are at the head of the itinerary, with the
                     wifi and the code behind this one. */}
                 {stay ? (
-                  <>
-                    <Text className="font-body text-sm text-ink">·</Text>
-                    <QuietAction
-                      label="Stay"
-                      onPress={() =>
-                        router.push(
-                          `/trips/stay/detail?id=${trip.id}&stay=${stay.id}`,
-                        )
-                      }
-                    />
-                  </>
+                  <QuietAction
+                    label="Stay"
+                    onPress={() =>
+                      router.push(
+                        `/trips/stay/detail?id=${trip.id}&stay=${stay.id}`,
+                      )
+                    }
+                  />
                 ) : null}
                 {/* The fourth door: money is the third
                     question of the same weight as the roll call and the
@@ -426,17 +462,15 @@ function TripDetailScreen({ coverKind }: { coverKind: PlaceholderKind }) {
                     that appears only once you owe something would be a
                     door nobody could find when they came to record the
                     dinner that made them owe it. */}
-                <Text className="font-body text-sm text-ink">·</Text>
                 <QuietAction
                   label="Settle"
                   onPress={() => router.push(`/trips/settle?id=${trip.id}`)}
                 />
-                <Text className="font-body text-sm text-ink">·</Text>
                 <QuietAction
                   label="Places"
                   onPress={() => router.push(`/trips/places?id=${trip.id}`)}
                 />
-                {/* The fifth door, and a reading one: the sky is a fact
+                {/* The last door, and a reading one: the sky is a fact
                     about the trip, not a thing anyone writes, so the door
                     opens a screen to look through rather than a ledger to
                     settle. It carries no role on purpose — every member may
@@ -449,19 +483,51 @@ function TripDetailScreen({ coverKind }: { coverKind: PlaceholderKind }) {
                     startDate: trip.startDate,
                     endDate: trip.endDate,
                   },
-                  todayIn(trip.preferredTimezone),
+                  today,
                 ) ? (
-                  <>
-                    <Text className="font-body text-sm text-ink">·</Text>
-                    <QuietAction
-                      label="Weather"
-                      onPress={() =>
-                        router.push(`/trips/weather?id=${trip.id}`)
-                      }
-                    />
-                  </>
+                  <QuietAction
+                    label="Weather"
+                    onPress={() =>
+                      router.push(`/trips/weather?id=${trip.id}`)
+                    }
+                  />
                 ) : null}
               </View>
+
+              {/* The trip's now, while the trip has one: where you are
+                  sleeping tonight (or the next roof to begin) and what
+                  is next on the schedule — the run's own top, condensed
+                  to two lines a reader can take in at once. The labels
+                  are the app's own words, and both lines press into the
+                  detail screen the door above them would reach, wearing
+                  its name because a door that says only Stay loses to
+                  this one: it is the same door, carrying the name as
+                  information rather than as a category. Gate on the
+                  roster's rule with the run — who has not answered Going
+                  reads neither events nor stays — and on the calendar:
+                  the pair exists when the trip is walkable, and goes
+                  silent otherwise, with no placeholder where a line
+                  would be. */}
+              {canReadRun && duringTrip && stay ? (
+                <QuietAction
+                  label={`Current stay — ${stay.name}`}
+                  onPress={() =>
+                    router.push(
+                      `/trips/stay/detail?id=${trip.id}&stay=${stay.id}`,
+                    )
+                  }
+                />
+              ) : null}
+              {next ? (
+                <QuietAction
+                  label={`Next event — ${next.event.name}, ${next.dayLabel}${next.clock ? ` ${next.clock}` : ""}`}
+                  onPress={() =>
+                    router.push(
+                      `/trips/events/detail?id=${trip.id}&event=${next.event.id}`,
+                    )
+                  }
+                />
+              ) : null}
             </View>
 
             {trip.description ? <Description text={trip.description} /> : null}

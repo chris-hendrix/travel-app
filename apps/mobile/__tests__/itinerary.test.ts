@@ -4,6 +4,7 @@ import {
   EVENT_TYPE_LABEL,
   groupEventsByDay,
   liveEvents,
+  nextEvent,
   withEdits,
   type EventType,
   type ItineraryEvent,
@@ -223,5 +224,71 @@ describe("all-day events lead their day", () => {
       "coffee",
       "dinner",
     ]);
+  });
+});
+
+describe("nextEvent", () => {
+  const zone = "Europe/Madrid";
+  /** 2026-09-19 15:30 Madrid is 13:30Z. */
+  const now = new Date("2026-09-19T13:30:00Z");
+
+  it("is the soonest event still ahead", () => {
+    const late = event("late", 20, 19);
+    const soon = event("soon", 19, 18);
+
+    expect(nextEvent([late, soon], zone, now)?.event.id).toBe("soon");
+  });
+
+  it("stays true while an event runs: over when it ends, not when it starts", () => {
+    // The 13:00 one started at 13:00Z and runs to 14:00Z — a quarter of
+    // an hour left, so the trip's now still belongs to it.
+    expect(nextEvent([event("running", 19, 13)], zone, now)?.event.id).toBe(
+      "running",
+    );
+
+    // And the 12:00 one ended before the moment, so the read moves on.
+    expect(nextEvent([event("past", 19, 12)], zone, now)).toBe(null);
+  });
+
+  it("owes an all-day event to its own date, never to the midnight stamp", () => {
+    // Starts at 18:00 by the stamp (before the moment) with no end; its
+    // date is today, so it is still the trip's live row.
+    expect(
+      nextEvent([{ ...event("festival", 19, 18, 0, 0), endTime: null, allDay: true }], zone, now)
+        ?.event.id,
+    ).toBe("festival");
+
+    // The same stamp yesterday is a fact about the record, not the now.
+    expect(
+      nextEvent([{ ...event("festival", 18, 18, 0, 0), endTime: null, allDay: true }], zone, now),
+    ).toBe(null);
+  });
+
+  it("names the day in the event's zone and keeps the clock away from all-day", () => {
+    // The builder stamps device time (UTC in this suite), so 17:00Z
+    // reads 19:00 on the Madrid wall.
+    const read = nextEvent([event("sail", 20, 17)], zone, now);
+    expect(read?.dayLabel).toBe("Sun");
+    expect(read?.clock).toBe("19:00");
+
+    const allDay = nextEvent(
+      [{ ...event("beach", 20, 12), allDay: true, endTime: null }],
+      zone,
+      now,
+    );
+    expect(allDay?.clock).toBe(null);
+  });
+
+  it("says nothing when nothing is scheduled or everything is past", () => {
+    expect(nextEvent([], zone, now)).toBe(null);
+    expect(nextEvent([event("old", 1, 9)], zone, now)).toBe(null);
+  });
+
+  it("leaves deleted rows out", () => {
+    const deleted = {
+      ...event("ghost", 19, 18),
+      deletedAt: "2026-09-19T00:00:00Z",
+    };
+    expect(nextEvent([deleted], zone, now)).toBe(null);
   });
 });
