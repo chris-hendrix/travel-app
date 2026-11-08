@@ -195,17 +195,27 @@ export { deleteEventOptions as deleteEventMutation };
 
 export type EventsStatus = "loading" | "error" | "offline" | "success";
 
-export function useEvents(tripId: string | undefined): {
+/**
+ * `enabled` holds the read, e.g. for a header that shares the run's
+ * query but serves a member the server would refuse: a fetch that
+ * always 403s is a request to refuse, which the run's own rule says
+ * the page does not fire (see `app/trips/detail.tsx`). Held reads read
+ * `loading`, never error, the same as an absent id.
+ */
+export function useEvents(
+  tripId: string | undefined,
+  enabled = true,
+): {
   events: ItineraryEvent[];
   status: EventsStatus;
   retry: () => void;
 } {
-  const enabled = typeof tripId === "string" && tripId.length > 0;
+  const on = enabled && typeof tripId === "string" && tripId.length > 0;
   const query = useQuery({
     ...eventsOptions(tripId ?? ""),
-    enabled,
+    enabled: on,
   });
-  const status: EventsStatus = !enabled || query.isPending
+  const status: EventsStatus = !on || query.isPending
     ? "loading"
     : query.isError
       ? isOffline(query.error)

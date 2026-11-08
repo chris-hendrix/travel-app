@@ -1,6 +1,6 @@
 import { daysBetween } from "@/lib/countdown";
-import { formatDay, formatTimeRange } from "@/lib/dateRange";
-import { wallClock } from "@/lib/timezone";
+import { formatDay, formatTimeRange, weekdayAbbrev } from "@/lib/dateRange";
+import { todayIn, wallClock } from "@/lib/timezone";
 import { joinFacts } from "@/lib/wording";
 import type { PlacePhotoCredit } from "@/lib/place-images";
 
@@ -188,6 +188,57 @@ export function groupEventsByDay(
       ),
     }))
     .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/** What the trip's now has scheduled, as the page's one live-line item. */
+export type NextEvent = {
+  /** The row itself, for its id (the detail door) and its name (the label). */
+  event: ItineraryEvent;
+  /** The event's own day, named: "Sat". In the trip's zone — an evening
+   *  in Mallorca can belong to a different weekday than the device reads. */
+  dayLabel: string;
+  /** The start, as the run's own rows say it — twelve-hour, "7:00 PM",
+   *  in the trip's zone. Null when the day is the whole answer: an all-day
+   *  card is all day, and no clock is the truthful word. */
+  time: string | null;
+};
+
+/**
+ * The event the trip's now belongs to: the one still running, else the
+ * soonest one ahead — and when nothing is running or coming, nothing.
+ *
+ * This is the read behind the trip page's live line, so its rule is the
+ * reader's, not the schedule's: an event is over when it *ends*, not when
+ * it starts, and an all-day event owes its reach to its own date, never
+ * to the midnight it is stamped with — the flag says that, and the look
+ * ahead follows from it. Deleted rows stay out (`liveEvents`), and the
+ * zone is the caller's, for the same reason the day grouping takes one.
+ */
+export function nextEvent(
+  events: ItineraryEvent[],
+  timeZone: string | null,
+  now: Date,
+): NextEvent | null {
+  const today = todayIn(timeZone, now);
+  const nowMs = now.getTime();
+
+  const live = liveEvents(events).sort((a, b) =>
+    a.startTime.localeCompare(b.startTime),
+  );
+  const upcoming = live.find((event) => {
+    const endMs = event.endTime ? new Date(event.endTime).getTime() : null;
+    // An end says when it stops. A start's day says the most an
+    // all-day event promises: it is live on its day, past after it.
+    if (endMs !== null) return endMs >= nowMs;
+    return wallClock(event.startTime, timeZone).date >= today;
+  });
+  if (!upcoming) return null;
+
+  return {
+    event: upcoming,
+    dayLabel: weekdayAbbrev(wallClock(upcoming.startTime, timeZone).date),
+    time: upcoming.allDay ? null : wallClock(upcoming.startTime, timeZone).time,
+  };
 }
 
 /**

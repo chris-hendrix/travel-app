@@ -3,7 +3,10 @@ import { Pressable, Text } from "react-native";
 import { useMotion } from "@/hooks/useMotion";
 
 /**
- * A secondary action: an underlined word, no box.
+ * A secondary action: an underlined word, no box. Whether it sizes
+ * itself as a word (`tight`) or as a 44pt target (`py-3`, default) —
+ * see the note on the prop for what tight is and the one place it is
+ * asked for so far.
  *
  * The system carries one loud button per screen and everything else
  * steps back, so the quieter things — the roll-call doors, Read more, the
@@ -40,6 +43,21 @@ export function QuietAction({
   onPress,
   align = "start",
   ariaLabel,
+  /**
+   * The target is the 20pt line the word sits in, not the 44pt box.
+   *
+   * This is the deviation `InlineAction` documents in its own note, and
+   * the same word-shaped control behind it, with the one difference kept
+   * deliberate: it keeps `role="button"` and the press treatment, so a
+   * run of tight words still reads as buttons to a reader and to tests.
+   * It exists for a row the 44pt box actively breaks: the trip page's
+   * door run (`app/trips/detail.tsx`), whose wrapped second line sat a
+   * full box apart from the run's first — two rows of 24pt padding
+   * stacked where the page's other word-pairs read a few pixels apart.
+   * Like `InlineAction`, labels stay short, because the target is the
+   * line; nothing else wants this until its row cannot afford the box.
+   */
+  tight = false,
 }: {
   label: string;
   onPress: () => void;
@@ -54,6 +72,7 @@ export function QuietAction({
    * centre it horizontally.
    */
   align?: "start" | "center";
+  tight?: boolean;
   /**
    * What the word is to a reader, when the word alone does not say it.
    *
@@ -75,7 +94,7 @@ export function QuietAction({
       onPress={onPress}
       role="button"
       aria-label={ariaLabel}
-      className={`justify-center py-3 ${
+      className={`justify-center ${tight ? "py-0" : "py-3"} ${
         align === "center" ? "self-start md:self-center" : "self-start"
       } ${motion.press}`}
     >

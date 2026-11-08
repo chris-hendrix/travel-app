@@ -1,0 +1,30 @@
+## Trip hero: live facts while a trip is walkable
+
+### What changes
+
+The trip detail header's right column, previously verified in conversation and mocked up before building:
+
+1. **Door run, spacing-only.** The run of doors (`2 going · Travel · Stay · Settle · Places · Weather`) wore the system's *value*Grammar — middle-dot joins, a device reserved for facts ("Today · Fri Sep 19"). On a wrap that made a door called Weather read as a word stranded on its own line with a trailing dot hanging off "Places". The dots are retired; spacing (`gap-x-4`) carries the run, and a wrapped line is honestly ragged instead of a broken sentence.
+
+2. **`Stay` retires from the run.** Its target (`currentStay()` — tonight's, or the next to begin) is now the Current-stay fact line, which opens the same screen while carrying the roof's *name*; the categorical word "Stay" was the same door without the information. The run keeps its doors-with-no-fact-of-their-own: `2 going, Travel, Settle, Places, Weather`.
+
+3. **The trip's now, below the run, mid-trip only.** Two boxless, whole-line pressables (`InlineAction`, text-sm to match the run):
+   - `Current stay — Airbnb in Shibuya` → stay detail
+   - `Next event — Pizza Night, Sun 7:00 PM` → event detail
+
+   Gated by the run's own gate (`canReadRun`, who answered Going) and the calendar (`startDate ≤ today ≤ endDate` in the screen's zone): no placeholder anywhere, the pair simply doesn't render before the trip starts or after it ends.
+
+4. **`nextEvent()` — new pure helper** (`lib/itinerary.ts`): the event the trip's now belongs to — the one still running (bound by its own *end*, not its start), else the soonest ahead, else null. All-day events owe their reach to their own date, never the midnight stamp. Zone comes from the caller, the same `settingsFor(trip).clock` choice the run's rows read through (`wallClock`/`formatTimeRange`), so the line flips with the zone token with the run.
+
+The events read is hoisted from the run's query (`useEvents`); react-query dedupes, so the header mounts no new request.
+
+### Deliberate misses
+
+- Demo trips are upcoming, so the mid-trip pair has no fixture render in the demo/mockup; the code path is exercised by unit tests on `nextEvent` only.
+- The screen's `duringTrip` uses date strings (yyyy-mm-dd), as the run's day grouping does; intra-day boundaries (an event ending at 23:59 vs the date rolling over) are handled by `nextEvent` itself at event granularity, not by the gate.
+
+### Verification
+
+- `pnpm --filter @journiful/mobile test -- itinerary.test` — 6 new cases for `nextEvent`: soonest-ahead, running-vs-ended, all-day-by-date, zone-honest day/human-clock labels (12-hour, the run's convention; `null` for all-day), empty/all-past, deleted rows excluded. Full mobile suite green before and after.
+- `pnpm typecheck`, `pnpm lint` green.
+- Manual pixel pass pending on the dev server (the pair renders only mid-trip).
