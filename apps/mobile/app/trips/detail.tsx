@@ -16,6 +16,7 @@ import { linkedRuns, truncateRuns } from "@/lib/linkify";
 import { tripCountdown } from "@/lib/countdown";
 import { formatDateRange } from "@/lib/dateRange";
 import { todayIn } from "@/lib/timezone";
+import { weatherAvailable } from "@/lib/weather";
 import type { RsvpStatus } from "@/lib/rsvp";
 import { useTrip } from "@/lib/tripsStore";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -416,7 +417,7 @@ function TripDetailScreen({ coverKind }: { coverKind: PlaceholderKind }) {
                     />
                   </>
                 ) : null}
-                {/* The fourth door, and the last: money is the third
+                {/* The fourth door: money is the third
                     question of the same weight as the roll call and the
                     travel board, and it is asked by the same trip. It
                     carries no condition on purpose — not on your role,
@@ -435,6 +436,31 @@ function TripDetailScreen({ coverKind }: { coverKind: PlaceholderKind }) {
                   label="Places"
                   onPress={() => router.push(`/trips/places?id=${trip.id}`)}
                 />
+                {/* The fifth door, and a reading one: the sky is a fact
+                    about the trip, not a thing anyone writes, so the door
+                    opens a screen to look through rather than a ledger to
+                    settle. It carries no role on purpose — every member may
+                    read the same sky — only the forecast's own condition:
+                    coordinates on the trip and dates the window reaches. */}
+                {weatherAvailable(
+                  {
+                    destinationLat: trip.destinationLat ?? null,
+                    destinationLon: trip.destinationLon ?? null,
+                    startDate: trip.startDate,
+                    endDate: trip.endDate,
+                  },
+                  todayIn(trip.preferredTimezone),
+                ) ? (
+                  <>
+                    <Text className="font-body text-sm text-ink">·</Text>
+                    <QuietAction
+                      label="Weather"
+                      onPress={() =>
+                        router.push(`/trips/weather?id=${trip.id}`)
+                      }
+                    />
+                  </>
+                ) : null}
               </View>
             </View>
 

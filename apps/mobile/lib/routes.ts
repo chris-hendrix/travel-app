@@ -45,6 +45,8 @@ export const DIALOG_ROUTES = [
   "/trips/places",
   "/trips/places/form",
   "/trips/places/detail",
+  "/trips/weather",
+  "/trips/weather/detail",
   "/terms",
   "/privacy",
   "/sms-terms",
