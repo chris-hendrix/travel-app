@@ -166,10 +166,22 @@ function TripDetailScreen({ coverKind }: { coverKind: PlaceholderKind }) {
   // the trip above — the header never renders without it, and the
   // viewer stand-in below reads the roster, never a mock.
   const { members } = useMembers(trip?.id);
+  // Who you are comes from the server: your own roster row, matched by
+  // account, carries your role — never a query param. Read this early
+  // because the events read below is gated on it: the run's rule is
+  // “nothing unreachable is fetched”, and a header sharing the run's
+  // query must keep that rule — who has not answered Going fires
+  // neither read.
+  const viewer = viewerOf(members, user?.id);
   // The events read, hoisted for the mid-trip live line: the same
   // query the run mounts its own section over, so one read serves
-  // both, and the header waits for nothing the run already loads.
-  const { events } = useEventsSection(trip?.id);
+  // both and the header waits for nothing the run already loads —
+  // and waits for nothing the run would refuse, either: held instead
+  // of fired when the member cannot read it.
+  const mightReadRun = Boolean(
+    trip && (viewer?.isOrganizer || viewer?.status === "going"),
+  );
+  const { events } = useEventsSection(trip?.id, mightReadRun);
   // The hero asks for the large box on wide layouts: a place photo URL
   // carries its `?size=` segment, so the box swaps there; uploads and
   // placeholders carry none and render unchanged.
@@ -210,9 +222,6 @@ function TripDetailScreen({ coverKind }: { coverKind: PlaceholderKind }) {
 
   const countdown = tripCountdown(trip.startDate, trip.endDate);
 
-  // Who you are comes from the server: your own roster row, matched
-  // by account, carries your role — never a query param.
-  const viewer = viewerOf(members, user?.id);
   const organizer = viewer?.isOrganizer ?? false;
   // Who may read the run at all. The server reads full trip data to the
   // members who said they are going, and to an organizer whatever they

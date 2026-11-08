@@ -232,48 +232,106 @@ describe("nextEvent", () => {
   /** 2026-09-19 15:30 Madrid is 13:30Z. */
   const now = new Date("2026-09-19T13:30:00Z");
 
+  /** An explicit instant, so the device zone the mocks build in cannot
+   *  move it — the suite's own convention for a zoned read. */
+  function stamped(
+    id: string,
+    start: string,
+    end: string | null,
+  ): ItineraryEvent {
+    return {
+      ...event(id, 19, 12),
+      startTime: start,
+      endTime: end,
+    };
+  }
+
   it("is the soonest event still ahead", () => {
-    const late = event("late", 20, 19);
-    const soon = event("soon", 19, 18);
+    const late = stamped(
+      "late",
+      "2026-09-20T09:00:00Z",
+      "2026-09-20T10:00:00Z",
+    );
+    const soon = stamped(
+      "soon",
+      "2026-09-19T16:00:00Z",
+      "2026-09-19T17:00:00Z",
+    );
 
     expect(nextEvent([late, soon], zone, now)?.event.id).toBe("soon");
   });
 
   it("stays true while an event runs: over when it ends, not when it starts", () => {
-    // The 13:00 one started at 13:00Z and runs to 14:00Z — a quarter of
-    // an hour left, so the trip's now still belongs to it.
-    expect(nextEvent([event("running", 19, 13)], zone, now)?.event.id).toBe(
-      "running",
-    );
+    // The 12:00 one started 90 minutes before the moment and runs to
+    // 14:00Z — a half hour left, so the trip's now still belongs to it.
+    expect(
+      nextEvent(
+        [stamped("running", "2026-09-19T12:00:00Z", "2026-09-19T14:00:00Z")],
+        zone,
+        now,
+      )?.event.id,
+    ).toBe("running");
 
-    // And the 12:00 one ended before the moment, so the read moves on.
-    expect(nextEvent([event("past", 19, 12)], zone, now)).toBe(null);
+    // And the 10:00 one ended before the moment, so the read moves on.
+    expect(
+      nextEvent(
+        [stamped("past", "2026-09-19T10:00:00Z", "2026-09-19T11:00:00Z")],
+        zone,
+        now,
+      ),
+    ).toBe(null);
   });
 
   it("owes an all-day event to its own date, never to the midnight stamp", () => {
-    // Starts at 18:00 by the stamp (before the moment) with no end; its
-    // date is today, so it is still the trip's live row.
+    // Starts 09:00Z (before the moment) with no end; its date is
+    // today, so it is still the trip's live row.
     expect(
-      nextEvent([{ ...event("festival", 19, 18, 0, 0), endTime: null, allDay: true }], zone, now)
-        ?.event.id,
+      nextEvent(
+        [
+          {
+            ...stamped("festival", "2026-09-19T09:00:00Z", null),
+            allDay: true,
+          },
+        ],
+        zone,
+        now,
+      )?.event.id,
     ).toBe("festival");
 
-    // The same stamp yesterday is a fact about the record, not the now.
+    // The same date yesterday is a fact about the record, not the now.
     expect(
-      nextEvent([{ ...event("festival", 18, 18, 0, 0), endTime: null, allDay: true }], zone, now),
+      nextEvent(
+        [
+          {
+            ...stamped("festival", "2026-09-18T09:00:00Z", null),
+            allDay: true,
+          },
+        ],
+        zone,
+        now,
+      ),
     ).toBe(null);
   });
 
   it("names the day in the event's zone and keeps the clock away from all-day", () => {
-    // The builder stamps device time (UTC in this suite), so 17:00Z
-    // reads 7:00 PM on the Madrid wall — the run's own convention, one
-    // clock range everywhere.
-    const read = nextEvent([event("sail", 20, 17)], zone, now);
+    // 17:00Z is 19:00 on a Madrid wall, Sunday Sep 20 there, whatever
+    // the lab runs — twelve-hour, the run's own convention, one clock
+    // range everywhere.
+    const read = nextEvent(
+      [stamped("sail", "2026-09-20T17:00:00Z", "2026-09-20T19:00:00Z")],
+      zone,
+      now,
+    );
     expect(read?.dayLabel).toBe("Sun");
     expect(read?.time).toBe("7:00 PM");
 
     const allDay = nextEvent(
-      [{ ...event("beach", 20, 12), allDay: true, endTime: null }],
+      [
+        {
+          ...stamped("beach", "2026-09-20T09:00:00Z", null),
+          allDay: true,
+        },
+      ],
       zone,
       now,
     );
@@ -282,13 +340,19 @@ describe("nextEvent", () => {
 
   it("says nothing when nothing is scheduled or everything is past", () => {
     expect(nextEvent([], zone, now)).toBe(null);
-    expect(nextEvent([event("old", 1, 9)], zone, now)).toBe(null);
+    expect(
+      nextEvent(
+        [stamped("old", "2026-09-01T09:00:00Z", "2026-09-01T10:00:00Z")],
+        zone,
+        now,
+      ),
+    ).toBe(null);
   });
 
   it("leaves deleted rows out", () => {
     const deleted = {
-      ...event("ghost", 19, 18),
-      deletedAt: "2026-09-19T00:00:00Z",
+      ...stamped("ghost", "2026-09-19T16:00:00Z", "2026-09-19T17:00:00Z"),
+      deletedAt: "2026-09-19T14:00:00.000Z",
     };
     expect(nextEvent([deleted], zone, now)).toBe(null);
   });
