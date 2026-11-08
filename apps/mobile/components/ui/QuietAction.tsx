@@ -72,6 +72,7 @@ export function QuietAction({
    * centre it horizontally.
    */
   align?: "start" | "center";
+  tight?: boolean;
   /**
    * What the word is to a reader, when the word alone does not say it.
    *
