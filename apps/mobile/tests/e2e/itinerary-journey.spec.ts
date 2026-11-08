@@ -85,6 +85,15 @@ test.describe("Itinerary Journey", () => {
     page,
     request,
   }) => {
+    // The journey outgrew its 60s budget — every step is real work (a
+    // seeded session, two navigations, an authoring flow, a deletion,
+    // then a full reload for a server-side proof), and the failure
+    // point that reaches CI is whatever step the budget expires in:
+    // the reload, the assertion after it, the step before it. A test
+    // whose failure moves with the clock is exhausting, not failing —
+    // the same signature CI draws on main (run 42395955445). `test.slow`
+    // is the suite's own record of the budget being what grew behind.
+    test.slow();
     const tripName = uniqueLabel("E2E Itinerary");
     const eventName = uniqueLabel("Harbour dinner");
     const editedName = `${eventName} feast`;

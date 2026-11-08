@@ -190,6 +190,13 @@ test.describe("Notifications", () => {
     page,
     request,
   }) => {
+    // Same outgrown-budget signature as the itinerary journey (see its
+    // note): real server work at every step, reload for the
+    // server-side proof at the end, and the failing step moves with
+    // the clock — reload, the unread count after it, whichever comes
+    // when the 60s default expires. Two trips seeded, a full register
+    // and per-trip navigation: the budget grew behind the journey.
+    test.slow();
     const tripA = uniqueLabel("E2E Notify A");
     const tripB = uniqueLabel("E2E Notify B");
     // The notification body is the inviter display name
