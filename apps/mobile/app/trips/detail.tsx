@@ -6,6 +6,7 @@ import { Screen } from "@/components/ui/Screen";
 import { Badge } from "@/components/ui/Badge";
 import { PhotoCredit } from "@/components/ui/PhotoCredit";
 import { QuietAction } from "@/components/ui/QuietAction";
+import { InlineAction } from "@/components/ui/InlineAction";
 import { LinkedText } from "@/components/ui/LinkedText";
 import { PlaceLink } from "@/components/ui/PlaceLink";
 import { nextEvent } from "@/lib/itinerary";
@@ -418,7 +419,12 @@ function TripDetailScreen({ coverKind }: { coverKind: PlaceholderKind }) {
                   door that drops to a second line now drops the way an
                   underlined word does, honestly ragged. The row is the
                   trip's chrome: the same doors, in the same order,
-                  whatever the calendar knows. */}
+                  whatever the calendar knows.
+
+                  Stay is not here. The live line below is the stay door
+                  now — the same target, wearing tonight's name instead of
+                  a category — and the rest of the roofs live where they
+                  always did, at the head of the run. */}
               <View className="flex-row flex-wrap items-center gap-x-4">
                 <QuietAction
                   label={`${trip.going} going`}
@@ -432,36 +438,14 @@ function TripDetailScreen({ coverKind }: { coverKind: PlaceholderKind }) {
                     router.push(`/trips/travel?id=${trip.id}`)
                   }
                 />
-                {/* The third door, and deliberately the categorical
-                    one: Stay, not a name. A name is only clear to
-                    somebody who already knows which roof is which, and
-                    on a five-hut traverse it is a word you have to
-                    decode before you can use it. What the door opens
-                    is nonetheless one particular stay — whichever you
-                    are in tonight, or the next to begin — and that is
-                    the only stay the label needs to be true about:
-                    there is one answer to where am I sleeping tonight.
-                    The rest are at the head of the itinerary, with the
-                    wifi and the code behind this one. */}
-                {stay ? (
-                  <QuietAction
-                    label="Stay"
-                    onPress={() =>
-                      router.push(
-                        `/trips/stay/detail?id=${trip.id}&stay=${stay.id}`,
-                      )
-                    }
-                  />
-                ) : null}
-                {/* The fourth door: money is the third
-                    question of the same weight as the roll call and the
-                    travel board, and it is asked by the same trip. It
-                    carries no condition on purpose — not on your role,
-                    not on whether there is a balance to read. Every
-                    member of a trip may look at its ledger, and a door
-                    that appears only once you owe something would be a
-                    door nobody could find when they came to record the
-                    dinner that made them owe it. */}
+                {/* Money: the third question of the same weight as the
+                    roll call and the travel board, and it is asked by
+                    the same trip. It carries no condition on purpose —
+                    not on your role, not on whether there is a balance
+                    to read. Every member of a trip may look at its
+                    ledger, and a door that appears only once you owe
+                    something would be a door nobody could find when
+                    they came to record the dinner that made them owe it. */}
                 <QuietAction
                   label="Settle"
                   onPress={() => router.push(`/trips/settle?id=${trip.id}`)}
@@ -497,36 +481,50 @@ function TripDetailScreen({ coverKind }: { coverKind: PlaceholderKind }) {
               {/* The trip's now, while the trip has one: where you are
                   sleeping tonight (or the next roof to begin) and what
                   is next on the schedule — the run's own top, condensed
-                  to two lines a reader can take in at once. The labels
-                  are the app's own words, and both lines press into the
-                  detail screen the door above them would reach, wearing
-                  its name because a door that says only Stay loses to
-                  this one: it is the same door, carrying the name as
-                  information rather than as a category. Gate on the
-                  roster's rule with the run — who has not answered Going
-                  reads neither events nor stays — and on the calendar:
-                  the pair exists when the trip is walkable, and goes
-                  silent otherwise, with no placeholder where a line
-                  would be. */}
-              {canReadRun && duringTrip && stay ? (
-                <QuietAction
-                  label={`Current stay — ${stay.name}`}
-                  onPress={() =>
-                    router.push(
-                      `/trips/stay/detail?id=${trip.id}&stay=${stay.id}`,
-                    )
-                  }
-                />
-              ) : null}
-              {next ? (
-                <QuietAction
-                  label={`Next event — ${next.event.name}, ${next.dayLabel}${next.clock ? ` ${next.clock}` : ""}`}
-                  onPress={() =>
-                    router.push(
-                      `/trips/events/detail?id=${trip.id}&event=${next.event.id}`,
-                    )
-                  }
-                />
+                  to two lines a reader can take in at once.
+
+                  Each line presses whole — label and value are one door
+                  with two halves of one name — wearing the run's own
+                  marks and its own size (`text-sm`, inherited from the
+                  wrapping Text), bold and underlined, no box
+                  (`InlineAction`'s documented deviation: the line the
+                  word sits in is the target). A 44pt box around each
+                  line is what stacked two blank lines of padding into
+                  the middle of what reads as one block, so the pair is
+                  boxless and tight; the column's own gap above is the
+                  slightly larger break that says the block follows the
+                  doors rather than belonging to them. Gate with the run
+                  — who has not answered Going reads neither events nor
+                  stays — and on the calendar: the pair exists while the
+                  trip is walkable and goes silent otherwise, no
+                  placeholder where a line would be. */}
+              {canReadRun && duringTrip && (stay || next) ? (
+                <View className="gap-1">
+                  {stay ? (
+                    <Text className="font-body text-sm text-ink">
+                      <InlineAction
+                        label={`Current stay — ${stay.name}`}
+                        onPress={() =>
+                          router.push(
+                            `/trips/stay/detail?id=${trip.id}&stay=${stay.id}`,
+                          )
+                        }
+                      />
+                    </Text>
+                  ) : null}
+                  {next ? (
+                    <Text className="font-body text-sm text-ink">
+                      <InlineAction
+                        label={`Next event — ${next.event.name}, ${next.dayLabel}${next.time ? ` ${next.time}` : ""}`}
+                        onPress={() =>
+                          router.push(
+                            `/trips/events/detail?id=${trip.id}&event=${next.event.id}`,
+                          )
+                        }
+                      />
+                    </Text>
+                  ) : null}
+                </View>
               ) : null}
             </View>
 

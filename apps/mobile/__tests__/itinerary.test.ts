@@ -266,17 +266,18 @@ describe("nextEvent", () => {
 
   it("names the day in the event's zone and keeps the clock away from all-day", () => {
     // The builder stamps device time (UTC in this suite), so 17:00Z
-    // reads 19:00 on the Madrid wall.
+    // reads 7:00 PM on the Madrid wall — the run's own convention, one
+    // clock range everywhere.
     const read = nextEvent([event("sail", 20, 17)], zone, now);
     expect(read?.dayLabel).toBe("Sun");
-    expect(read?.clock).toBe("19:00");
+    expect(read?.time).toBe("7:00 PM");
 
     const allDay = nextEvent(
       [{ ...event("beach", 20, 12), allDay: true, endTime: null }],
       zone,
       now,
     );
-    expect(allDay?.clock).toBe(null);
+    expect(allDay?.time).toBe(null);
   });
 
   it("says nothing when nothing is scheduled or everything is past", () => {

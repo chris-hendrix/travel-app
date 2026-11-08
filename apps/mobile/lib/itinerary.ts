@@ -197,9 +197,10 @@ export type NextEvent = {
   /** The event's own day, named: "Sat". In the trip's zone — an evening
    *  in Mallorca can belong to a different weekday than the device reads. */
   dayLabel: string;
-  /** The start, twenty-four hour, in the trip's zone: "18:00". Null when
-   *  the day is the whole answer — an all-day card reads its range elsewhere. */
-  clock: string | null;
+  /** The start, as the run's own rows say it — twelve-hour, "7:00 PM",
+   *  in the trip's zone. Null when the day is the whole answer: an all-day
+   *  card is all day, and no clock is the truthful word. */
+  time: string | null;
 };
 
 /**
@@ -236,9 +237,7 @@ export function nextEvent(
   return {
     event: upcoming,
     dayLabel: weekdayAbbrev(wallClock(upcoming.startTime, timeZone).date),
-    clock: upcoming.allDay
-      ? null
-      : wallClock(upcoming.startTime, timeZone).clock,
+    time: upcoming.allDay ? null : wallClock(upcoming.startTime, timeZone).time,
   };
 }
 
