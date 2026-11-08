@@ -203,14 +203,15 @@ test.describe("Weather Journey", () => {
       // app/trips/weather/detail.tsx: the title is the day's label
       // (.last(): the app header echoes the same title in a hidden
       // element — the trip suite's detail lesson), the hero reads the
-      // high, the facts carry High, the hourly block is titled.
+      // date, the facts carry High, and the hourly block runs title-less
+      // like the facts block beside it — its six 12-hour times are the
+      // block's own shape.
       await expect(page.getByText(firstLabel).last()).toBeVisible({
         timeout: NAVIGATION_TIMEOUT,
       });
       await expect(
         page.getByText("High", { exact: true }),
       ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
-      await expect(page.getByText("Hourly", { exact: true })).toBeVisible();
       await expect(page.getByText(/^(1[0-2]|[1-9]) (AM|PM)$/).first()).toBeVisible();
       // The stepper disables at the ends by rendering plain text, not
       // a button (a wrap would read as an infinite list): on the first
@@ -281,7 +282,9 @@ test.describe("Weather Journey", () => {
       await expect(
         page.getByText("High", { exact: true }),
       ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
-      await expect(page.getByText("Hourly", { exact: true })).toBeVisible();
+      await expect(
+        page.getByText(/^(1[0-2]|[1-9]) (AM|PM)$/).first(),
+      ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
     });
   });
 });

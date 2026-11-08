@@ -13,6 +13,7 @@ import {
   dayStep,
   fahrenheitToCelsius,
   forecastUpdatedWording,
+  googleWeatherUrl,
   formatHour12,
   formatTemp,
   formatWind,
@@ -454,5 +455,24 @@ describe("forecastUpdatedWording", () => {
     expect(
       forecastUpdatedWording("2026-10-11T11:50:00Z", now),
     ).toBe("Forecast just now");
+  });
+});
+
+describe("googleWeatherUrl", () => {
+  it("encodes the destination into the search form that renders the card", () => {
+    expect(googleWeatherUrl("Miami, Florida")).toBe(
+      "https://www.google.com/search?q=weather%20Miami%2C%20Florida",
+    );
+  });
+
+  it("trims whitespace around the destination", () => {
+    expect(googleWeatherUrl("  Miami, Florida  ")).toBe(
+      "https://www.google.com/search?q=weather%20Miami%2C%20Florida",
+    );
+  });
+
+  it("is null when the trip names no destination", () => {
+    expect(googleWeatherUrl("")).toBeNull();
+    expect(googleWeatherUrl("   ")).toBeNull();
   });
 });

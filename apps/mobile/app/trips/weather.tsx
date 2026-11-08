@@ -1,10 +1,11 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Pressable, Text, View } from "react-native";
+import { Linking, Pressable, Text, View } from "react-native";
 
 import NotFound from "@/app/+not-found";
 import { TripGate } from "@/components/trip/TripGate";
 import { Badge } from "@/components/ui/Badge";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
+import { InlineAction } from "@/components/ui/InlineAction";
 import { InlineError } from "@/components/ui/InlineError";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { OfflineBlock } from "@/components/ui/OfflineBlock";
@@ -18,6 +19,7 @@ import {
   conditionHueForWord,
   forecastUpdatedWording,
   formatTemp,
+  googleWeatherUrl,
   prepareWeatherDays,
 } from "@/lib/weather";
 
@@ -59,7 +61,11 @@ function TripWeatherDialog() {
       title="Weather"
       dismissHref={`/trips/detail?id=${trip.id}`}
     >
-      <WeatherList tripId={trip.id} timeZone={trip.preferredTimezone} />
+      <WeatherList
+        tripId={trip.id}
+        timeZone={trip.preferredTimezone}
+        destination={trip.placeName ?? trip.location}
+      />
     </FullscreenDialog>
   );
 }
@@ -78,9 +84,11 @@ function TripWeatherDialog() {
 function WeatherList({
   tripId,
   timeZone,
+  destination,
 }: {
   tripId: string;
   timeZone: string;
+  destination: string;
 }) {
   const router = useRouter();
   const motion = useMotion();
@@ -125,6 +133,7 @@ function WeatherList({
   }
 
   const foot = forecastUpdatedWording(data.fetchedAt);
+  const weatherUrl = googleWeatherUrl(destination);
 
   return (
     <View className="gap-6">
@@ -141,21 +150,24 @@ function WeatherList({
             className={motion.rowOnGravel}
             accessibilityLabel={`${row.label}, ${row.condition}, ${formatTemp(row.high, unit)}/${formatTemp(row.low, unit)}, ${row.precipitationProbability}% chance of rain`}
           >
+            {/* The row: the day and its chip inline on the left (the
+                warm fair band, the cool foul one — the hue is how a scan
+                finds the rain days), the numeral pair in ink on the
+                right with the precip chance quiet under it — the second
+                line gives a dense row some vertical air. */}
             <View className="flex-row items-center justify-between gap-4 py-3">
-              <View className="gap-1">
+              <View className="flex-row items-center gap-3">
                 <Text className="font-body text-base text-ink">
                   {row.label}
                 </Text>
-                <View className="self-start">
-                  <Badge
-                    variant="category"
-                    size="sm"
-                    hue={conditionHueForWord(row.condition)}
-                    label={row.condition}
-                  />
-                </View>
+                <Badge
+                  variant="category"
+                  size="sm"
+                  hue={conditionHueForWord(row.condition)}
+                  label={row.condition}
+                />
               </View>
-              <View className="items-end gap-1">
+              <View className="items-end">
                 <Text className="font-body text-base text-ink">
                   {formatTemp(row.high, unit)}/{formatTemp(row.low, unit)}
                 </Text>
@@ -167,8 +179,25 @@ function WeatherList({
           </Pressable>
         ))}
       </RuledRows>
-      {foot ? (
-        <Text className="font-body text-sm text-ink opacity-60">{foot}</Text>
+      {/* The foot: the fetched-at wording on the left and, when the
+          trip names a destination, the one external door — the Google
+          weather card for the place (googleWeatherUrl), pressed as the
+          InlineAction word because a link to another service is a word
+          that presses and has no box. Open-Meteo is our forecast; the
+          card is the destination's weather somewhere readers already
+          look, so the mark stays quiet and names the service. */}
+      {foot || weatherUrl ? (
+        <View className="flex-row items-center justify-between gap-4">
+          <Text className="font-body text-sm text-ink opacity-60">
+            {foot}
+          </Text>
+          {weatherUrl ? (
+            <InlineAction
+              label="Google Weather"
+              onPress={() => void Linking.openURL(weatherUrl)}
+            />
+          ) : null}
+        </View>
       ) : null}
     </View>
   );

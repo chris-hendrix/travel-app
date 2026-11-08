@@ -68,7 +68,10 @@ function TripWeatherDayDialog() {
 
   return (
     <FullscreenDialog
-      title={dayParam ? formatDay(dayParam) : "Weather"}
+      // The title is the dialog's, not the day's: the body's hero names
+      // the date once, at display weight, and a header that repeats it
+      // two sizes smaller is the same words twice on one screen.
+      title="Weather"
       dismissHref={listHref}
     >
       <WeatherDayDetail
@@ -191,10 +194,33 @@ function WeatherDayDetail({
 
   return (
     <View className="gap-6">
+      {/* The hero leads — the day is the subject, and a reader who lands
+          from the list is asking which day, not asking to leave it. The
+          date over the day's high, pinned — never a mid temp — with the
+          condition chip under it; the header band says Weather, the
+          dialog's own name in the wayfinding weight. The numeral is the
+          stimulant; the chip carries the theme (warm fair band, cool
+          foul one), and its word still classifies the sky. */}
+      <View className="items-center gap-2">
+        <Text className="font-display-semibold text-heading-lg text-ink">
+          {formatDay(day)}
+        </Text>
+        <Text className="font-display-extrabold text-display-lg text-ink">
+          {formatTemp(forecast.temperatureMax, unit)}
+        </Text>
+        <Badge
+          variant="category"
+          size="md"
+          hue={conditionHue(forecast.weatherCode)}
+          label={conditionWord(forecast.weatherCode)}
+        />
+      </View>
+
       {/* Prev/Next step the `&day=` param and disable at the ends — a
           wrap would read as an infinite list the data does not have.
           The words name their own direction; the aria label names the
-          day each one lands on. */}
+          day each one lands on. They ride under the hero, above the
+          columns: navigation answers identity. */}
       <View className="flex-row items-center justify-between">
         {prev ? (
           <QuietAction
@@ -220,74 +246,73 @@ function WeatherDayDetail({
         )}
       </View>
 
-      {/* The hero: the day's high, pinned — never a mid temp — with the
-          condition chip under it. The numeral is the stimulant; the chip
-          carries the theme (warm fair band, cool foul one), and its word
-          still classifies the sky. */}
-      <View className="items-center gap-2">
-        <Text className="font-display-extrabold text-display-lg text-ink">
-          {formatTemp(forecast.temperatureMax, unit)}
-        </Text>
-        <Badge
-          variant="category"
-          size="md"
-          hue={conditionHue(forecast.weatherCode)}
-          label={conditionWord(forecast.weatherCode)}
-        />
-      </View>
-
-      <DailyFacts
-        unit={unit}
-        high={forecast.temperatureMax}
-        low={forecast.temperatureMin}
-        feelsMax={forecast.apparentTemperatureMax}
-        feelsMin={forecast.apparentTemperatureMin}
-        precipitationProbability={forecast.precipitationProbability}
-        windSpeedMax={forecast.windSpeedMax}
-        windDirection={forecast.windDirectionDominant}
-        uvIndexMax={forecast.uvIndexMax}
-        sunrise={forecast.sunrise}
-        sunset={forecast.sunset}
-      />
+      {/* Wide screens read two columns: the day's facts on the left,
+          its six-hour profile on the right — the composition a weather
+          page has on a desk, filling the scaffold's 960px column instead
+          of hanging values off one edge of it. Phones (under md) keep
+          the single column the thumb reads. */}
+      <View className="gap-6 md:flex-row md:items-start md:gap-8">
+        <View className="gap-6 md:flex-1">
+          <DailyFacts
+            unit={unit}
+            high={forecast.temperatureMax}
+            low={forecast.temperatureMin}
+            feelsMax={forecast.apparentTemperatureMax}
+            feelsMin={forecast.apparentTemperatureMin}
+            precipitationProbability={forecast.precipitationProbability}
+            windSpeedMax={forecast.windSpeedMax}
+            windDirection={forecast.windDirectionDominant}
+            uvIndexMax={forecast.uvIndexMax}
+            sunrise={forecast.sunrise}
+            sunset={forecast.sunset}
+          />
+        </View>
 
       {/* The day's profile at six destination-clock hours — a profile,
           not a log. One line each: the 12-hour time and the condition
-          chip on the left, the precip chance (quiet) and the temp —
-          rightest — on the right. Humidity, dew, wind, and UV live in
-          the daily facts above, not per hour. */}
-      {sample.length > 0 ? (
-        <RuledBlock title="Hourly">
-          <RuledRows>
-            {sample.map((row) => (
-              <View
-                key={row.time}
-                className="flex-row items-center justify-between gap-4 py-2"
-                accessibilityLabel={`${formatHour12(row.time)}, ${conditionWord(row.weatherCode)}, ${formatTemp(row.temperature, unit)}, ${row.precipitationProbability}% chance of rain`}
-              >
-                <View className="flex-row items-center gap-2">
-                  <Text className="font-body-bold text-sm text-ink">
-                    {formatHour12(row.time)}
-                  </Text>
-                  <Badge
-                    variant="category"
-                    size="sm"
-                    hue={conditionHue(row.weatherCode)}
-                    label={conditionWord(row.weatherCode)}
-                  />
-                </View>
-                <View className="flex-row items-center gap-2">
-                  <Text className="font-body text-sm text-ink opacity-60">
-                    {row.precipitationProbability}%
-                  </Text>
-                  <Text className="font-body text-sm text-ink">
-                    {formatTemp(row.temperature, unit)}
-                  </Text>
-                </View>
-              </View>
-            ))}
-          </RuledRows>
-        </RuledBlock>
-      ) : null}
+          chip on the left, the temp in ink with the precip chance quiet
+          after it on the right — the numeral reads first. Humidity, dew,
+          wind, and UV live in the daily facts, not per hour. */}
+        <View className="md:flex-1">
+          {sample.length > 0 ? (
+            // Title-less, matching the facts block beside it: the times
+            // name themselves (`6 AM`), the facts name themselves (`High`),
+            // and one block wearing a word the other lacks is the
+            // asymmetry this twin layout is not allowed.
+            <RuledBlock>
+              <RuledRows>
+                {sample.map((row) => (
+                  <View
+                    key={row.time}
+                    className="flex-row items-center justify-between gap-4 py-2"
+                    accessibilityLabel={`${formatHour12(row.time)}, ${conditionWord(row.weatherCode)}, ${formatTemp(row.temperature, unit)}, ${row.precipitationProbability}% chance of rain`}
+                  >
+                    <View className="flex-row items-center gap-2">
+                      <Text className="font-body text-sm text-ink">
+                        {formatHour12(row.time)}
+                      </Text>
+                      <Badge
+                        variant="category"
+                        size="sm"
+                        hue={conditionHue(row.weatherCode)}
+                        label={conditionWord(row.weatherCode)}
+                      />
+                    </View>
+                    <View className="flex-row items-center gap-2">
+                      <Text className="font-body text-sm text-ink">
+                        {formatTemp(row.temperature, unit)}
+                      </Text>
+                      <Text className="font-body text-sm text-ink opacity-60">
+                        {row.precipitationProbability}%
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </RuledRows>
+            </RuledBlock>
+          ) : null}
+        </View>
+      </View>
     </View>
   );
 }
@@ -332,7 +357,7 @@ function DailyFacts({
       value: [feelsMax, feelsMin]
         .filter((value) => value != null)
         .map((value) => formatTemp(value as number, unit))
-        .join(" / "),
+        .join("/"),
     });
   }
   if (precipitationProbability != null) {
@@ -356,7 +381,7 @@ function DailyFacts({
   return (
     <RuledBlock>
       {facts.map((fact) => (
-        <Fact key={fact.label} label={fact.label}>
+        <Fact key={fact.label} label={fact.label} spread>
           <Text className="font-body text-base text-ink">{fact.value}</Text>
         </Fact>
       ))}

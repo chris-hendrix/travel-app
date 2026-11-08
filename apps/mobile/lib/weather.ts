@@ -251,6 +251,22 @@ export function dayStep(
 }
 
 /**
+ * The destination's Google weather card — the search form
+ * (`google.com/search?q=weather <place>`) that renders the card in any
+ * browser, no app or auth involved, the same on web and native. The
+ * destination string decides the card; null when the trip names no
+ * destination, in which case the foot carries only the fetched-at
+ * wording.
+ */
+export function googleWeatherUrl(destination: string): string | null {
+  const place = destination.trim();
+  if (!place) return null;
+  return `https://www.google.com/search?q=${encodeURIComponent(
+    `weather ${place}`,
+  )}`;
+}
+
+/**
  * The list foot from `fetchedAt`, rounded to hours — "Forecast from
  * 3 h ago", "Forecast just now" under an hour, "" when never fetched.
  */
