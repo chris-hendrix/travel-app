@@ -511,15 +511,17 @@ function TripDetailScreen({ coverKind }: { coverKind: PlaceholderKind }) {
                   word sits in is the target). A 44pt box around each
                   line is what stacked two blank lines of padding into
                   the middle of what reads as one block, so the pair is
-                  boxless and tight; the column's own gap above is the
-                  slightly larger break that says the block follows the
-                  doors rather than belonging to them. Gate with the run
+                  boxless and tight with its own small internal break;
+                  `mt-4` is the block's own gap — the larger break that
+                  says these two lines follow the doors rather than
+                  belonging to them, a paragraph under a heading more
+                  than a continuation of the run. Gate with the run
                   — who has not answered Going reads neither events nor
                   stays — and on the calendar: the pair exists while the
                   trip is walkable and goes silent otherwise, no
                   placeholder where a line would be. */}
               {canReadRun && duringTrip && (stay || next) ? (
-                <View className="gap-1">
+                <View className="mt-4 gap-1">
                   {stay ? (
                     <Text className="font-body text-sm text-ink">
                       <InlineAction
