@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { Fragment, Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { AppState, Platform, View } from "react-native";
 import { QueryClientProvider, focusManager } from "@tanstack/react-query";
 import { makeQueryClient } from "@/lib/queries/client";
@@ -10,13 +10,6 @@ import { Stack, SplashScreen, usePathname, useRouter } from "expo-router";
 // the several other option-setting calls in this file.
 import { setOptions as setSplashOptions } from "expo-splash-screen";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-// The web tab's own label. Expo's shell ships an empty <title>, which
-// reads as the URL on a tab strip; the mark beside it says which product,
-// this says what to call it. A default import, not a named one:
-// `expo-router/head` is `export { Head as default }`, so `{ Head }` is
-// undefined and takes the whole tree down with it. It is the root
-// layout's rather than a screen's, so it holds everywhere — a screen that
-// wants its own title renders a Head of its own and the deepest wins.
 import Head from "expo-router/head";
 import { useFonts } from "expo-font";
 // The eight faces, one import each, **by path**. The import from
@@ -71,6 +64,10 @@ SplashScreen.preventAutoHideAsync();
 // sand) rather than something that resembles it. A no-op elsewhere, and `void`,
 // so there is nothing here to catch or await.
 setSplashOptions({ duration: 200, fade: true });
+// React 19 hoists metadata into the document on web. Expo Head keeps
+// the corresponding route metadata available on native.
+const RouteHead = Platform.OS === "web" ? Fragment : Head;
+
 function subscribeToHydration() {
   return () => {};
 }
@@ -190,15 +187,7 @@ export default function RootLayout() {
       <NotificationsProvider>
         <ProfileProvider>
           <TripSettingsProvider>
-            {/*
-              `expo-router/head` is react-helmet-async's Helmet gated on
-              `useIsFocused`, so the tags of every mounted instance merge
-              into one document head: one Head rendering one of each tag
-              is therefore the arrangement with nothing to reconcile. It
-              is the root layout's, so it holds on every route including
-              the ones nobody adds a Head to.
-            */}
-            <Head>
+            <RouteHead>
               <title>{seo.title}</title>
               <meta name="description" content={seo.description} />
               {/*
@@ -225,7 +214,7 @@ export default function RootLayout() {
               <meta name="twitter:title" content={seo.title} />
               <meta name="twitter:description" content={seo.description} />
               <meta name="twitter:image" content={seo.ogImageUrl} />
-            </Head>
+            </RouteHead>
             <View
               className={isDialog ? "flex-1 bg-gravel" : "flex-1 bg-sand"}
               style={{

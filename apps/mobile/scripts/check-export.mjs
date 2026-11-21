@@ -30,7 +30,15 @@ if (!fs.existsSync(dist)) {
   process.exit(1);
 }
 
-check("dist/index.html exists", fs.existsSync(path.join(dist, "index.html")));
+const index = path.join(dist, "index.html");
+check("dist/index.html exists", fs.existsSync(index));
+if (fs.existsSync(index)) {
+  const html = fs.readFileSync(index, "utf8");
+  const bundle = html.match(/<script\b[^>]*\bsrc="\/(_expo\/static\/js\/web\/[^"]+\.js)"/);
+  const stylesheet = html.match(/<link\b[^>]*\bhref="\/(_expo\/static\/css\/[^"]+\.css)"/);
+  check("index.html loads an exported web bundle", !!bundle && fs.existsSync(path.join(dist, bundle[1])));
+  check("index.html loads an exported stylesheet", !!stylesheet && fs.existsSync(path.join(dist, stylesheet[1])));
+}
 
 const jsDir = path.join(dist, "_expo", "static", "js", "web");
 const hasBundle =
