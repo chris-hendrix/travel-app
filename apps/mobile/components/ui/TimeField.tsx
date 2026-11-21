@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ComponentRef } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { ArrowDown, ArrowUp } from "lucide-react-native";
 import { FieldError } from "@/components/ui/FieldError";
@@ -102,7 +102,7 @@ export function TimeField({
   disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
   const motion = useMotion();
   const Icon = open ? ArrowUp : ArrowDown;
 
