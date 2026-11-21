@@ -2,7 +2,7 @@
  * E2E Journey: weather (mobile).
  *
  * Critical flow: core value-delivery — the trip's forecast, read from
- * the real Open-Meteo-backed endpoint through the Weather door: trip
+ * the API's weather endpoint through the Weather door: trip
  * page → list dialog → day-detail dialog → Prev/Next cycling → cold
  * day-URL load. One test, one flow: the door's visibility gate and the
  * Prev/Next stepping are what the renderer-less Vitest suite cannot
@@ -12,11 +12,12 @@
  * Seeding follows the journeys' own idiom (helpers/auth.ts for the
  * organizer, POST /api/trips like helpers/trip.ts `seedTripViaAPI`
  * but with near-term dates inside the 16-day window plus explicit
- * destinationLat/Lon so the Weather gate passes); the forecast itself
- * comes from the real `/trips/:id/weather` endpoint — no mocks.
+ * destinationLat/Lon so the Weather gate passes); the forecast is seeded
+ * in the API cache so the journey can run independently of Open-Meteo.
  */
 
 import { test, expect, type APIRequestContext } from "@playwright/test";
+import { seedWeatherCache } from "../../../api/tests/weather-cache-fixture";
 import {
   armSession,
   generateUniquePhone,
@@ -134,6 +135,7 @@ test.describe("Weather Journey", () => {
     request,
   }) => {
     const tripName = uniqueLabel("E2E Weather");
+    const forecastDays = [1, 2, 3, 4, 5].map(isoIn);
 
     let tripId: string;
     let token: string;
@@ -155,10 +157,10 @@ test.describe("Weather Journey", () => {
         token,
         tripName,
       ));
-      // The real endpoint (Open-Meteo backed, 3 h cache): its dates are
-      // the rows the list must render, and the days Prev/Next must step.
+      await seedWeatherCache(tripId, forecastDays);
+      // Verify the real endpoint serves the seeded days before opening the UI.
       dates = await forecastDatesViaAPI(request, token, tripId);
-      expect(dates.length).toBeGreaterThanOrEqual(2);
+      expect(dates).toEqual(forecastDays);
     });
 
     const firstDate = dates[0]!;
