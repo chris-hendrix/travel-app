@@ -95,7 +95,12 @@ export default defineConfig({
             // @react-native/dev-middleware throws under NODE_ENV=test
             // ("DefaultToolLauncher must be mocked"). A dev server is a
             // development server, so pin it back explicitly.
-            env: { NODE_ENV: "development" },
+            // Bundle eagerly in Playwright so cold navigation does not
+            // compete with on-demand compilation across browser workers.
+            env: {
+              NODE_ENV: "development",
+              EXPO_NO_METRO_LAZY: "1",
+            },
           };
     return [
       {
