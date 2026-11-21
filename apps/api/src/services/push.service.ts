@@ -1,4 +1,4 @@
-import webpush from "web-push";
+import * as webpush from "web-push";
 import admin, { type App } from "firebase-admin";
 import { getMessaging } from "firebase-admin/messaging";
 import { and, eq } from "drizzle-orm";

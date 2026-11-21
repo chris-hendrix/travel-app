@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { AppState, Platform, View } from "react-native";
 import { QueryClientProvider, focusManager } from "@tanstack/react-query";
 import { makeQueryClient } from "@/lib/queries/client";
@@ -71,8 +71,23 @@ SplashScreen.preventAutoHideAsync();
 // sand) rather than something that resembles it. A no-op elsewhere, and `void`,
 // so there is nothing here to catch or await.
 setSplashOptions({ duration: 200, fade: true });
+function subscribeToHydration() {
+  return () => {};
+}
+
 export default function RootLayout() {
   const pathname = usePathname();
+  const isClient = useSyncExternalStore(
+    subscribeToHydration,
+    () => true,
+    () => false,
+  );
+  // Trip routes and the demo need query parameters or a browser session.
+  // Expo's static renderer awaits their Suspense queries during export.
+  const waitForClient =
+    Platform.OS === "web" &&
+    !isClient &&
+    (pathname === "/demo" || pathname === "/trips" || pathname.startsWith("/trips/"));
   // The way out of the screens a session was showing.
   //
   // The store owns *when* a session ends and knows nothing about routing,
@@ -293,7 +308,7 @@ export default function RootLayout() {
                     `animation` and `animationDuration` are inert there and the
                     export swaps screens instantly, as it always has.
                   */}
-                  <Stack
+                  {waitForClient ? <BootGate label="Opening Journiful" /> : <Stack
                     screenOptions={{
                       headerShown: false,
                       title: "Journiful",
@@ -309,7 +324,7 @@ export default function RootLayout() {
                         }}
                       />
                     ))}
-                  </Stack>
+                  </Stack>}
                 </Suspense>
               </View>
             </View>

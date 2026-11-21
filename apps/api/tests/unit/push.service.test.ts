@@ -5,10 +5,6 @@ import type { Logger } from "@/types/logger.js";
 
 // Mock web-push before importing anything that uses it
 vi.mock("web-push", () => ({
-  default: {
-    setVapidDetails: vi.fn(),
-    sendNotification: vi.fn().mockResolvedValue(undefined),
-  },
   setVapidDetails: vi.fn(),
   sendNotification: vi.fn().mockResolvedValue(undefined),
 }));
@@ -19,7 +15,7 @@ vi.mock("web-push", () => ({
 
 import admin from "firebase-admin";
 import { mockSend } from "../../tests/mocks/firebase-admin.js";
-import webpush from "web-push";
+import * as webpush from "web-push";
 import { PushService } from "@/services/push.service.js";
 
 describe("PushService", () => {
