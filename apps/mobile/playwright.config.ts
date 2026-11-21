@@ -13,8 +13,10 @@ import { ADMIN_PHONES } from "./tests/e2e/helpers/auth";
 export default defineConfig({
   testDir: "./tests/e2e",
 
-  // Maximum time one test can run
-  timeout: 60 * 1000,
+  // Metro serves a fresh development bundle on hard navigations. Long
+  // journeys make several of those, so give the dev CI run more total
+  // time while keeping each navigation and UI assertion's own deadline.
+  timeout: (process.env.CI && process.env.MOBILE_WEB_TARGET !== "export" ? 120 : 60) * 1000,
 
   // Test execution settings
   fullyParallel: true,
