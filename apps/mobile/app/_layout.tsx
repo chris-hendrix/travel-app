@@ -44,7 +44,7 @@ import * as SystemNotifications from "expo-notifications";
 import type { NotificationResponse } from "expo-notifications";
 import { BootGate } from "@/components/ui/BootGate";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
-import { BARE_HEADER_ROUTES, DIALOG_ROUTES } from "@/lib/routes";
+import { BARE_HEADER_ROUTES, DIALOG_ROUTES, waitsForBrowserSession } from "@/lib/routes";
 import { seoFor } from "@/lib/seo";
 import { AuthProvider } from "@/lib/authStore";
 import { DemoGuard } from "@/components/demo/DemoGuard";
@@ -82,12 +82,10 @@ export default function RootLayout() {
     () => true,
     () => false,
   );
-  // Trip routes and the demo need query parameters or a browser session.
-  // Expo's static renderer awaits their Suspense queries during export.
+  // Expo's static renderer awaits Suspense queries. Render the shell
+  // until hydration for screens that read browser-dependent trip data.
   const waitForClient =
-    Platform.OS === "web" &&
-    !isClient &&
-    (pathname === "/demo" || pathname === "/trips" || pathname.startsWith("/trips/"));
+    Platform.OS === "web" && !isClient && waitsForBrowserSession(pathname);
   // The way out of the screens a session was showing.
   //
   // The store owns *when* a session ends and knows nothing about routing,
@@ -308,23 +306,27 @@ export default function RootLayout() {
                     `animation` and `animationDuration` are inert there and the
                     export swaps screens instantly, as it always has.
                   */}
-                  {waitForClient ? <BootGate label="Opening Journiful" /> : <Stack
-                    screenOptions={{
-                      headerShown: false,
-                      title: "Journiful",
-                    }}
-                  >
-                    {DIALOG_ROUTES.map((route) => (
-                      <Stack.Screen
-                        key={route}
-                        name={route.slice(1)}
-                        options={{
-                          presentation: "modal",
-                          animation: "slide_from_bottom",
-                        }}
-                      />
-                    ))}
-                  </Stack>}
+                  {waitForClient ? (
+                    <BootGate label="Opening Journiful" />
+                  ) : (
+                    <Stack
+                      screenOptions={{
+                        headerShown: false,
+                        title: "Journiful",
+                      }}
+                    >
+                      {DIALOG_ROUTES.map((route) => (
+                        <Stack.Screen
+                          key={route}
+                          name={route.slice(1)}
+                          options={{
+                            presentation: "modal",
+                            animation: "slide_from_bottom",
+                          }}
+                        />
+                      ))}
+                    </Stack>
+                  )}
                 </Suspense>
               </View>
             </View>
