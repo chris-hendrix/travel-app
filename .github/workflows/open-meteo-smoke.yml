@@ -1,0 +1,54 @@
+name: Open-Meteo Smoke Test
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 13 * * *"
+
+permissions: {}
+
+jobs:
+  forecast:
+    name: Check live forecast
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Verify the forecast response
+        run: |
+          node --input-type=module <<'JS'
+          import assert from "node:assert/strict";
+
+          const url = new URL("https://api.open-meteo.com/v1/forecast");
+          url.search = new URLSearchParams({
+            latitude: "25.7617",
+            longitude: "-80.1918",
+            daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max",
+            hourly: "temperature_2m,weather_code",
+            timezone: "America/New_York",
+            forecast_days: "16",
+          });
+
+          const response = await fetch(url, { signal: AbortSignal.timeout(15_000) });
+          assert.ok(response.ok, `Open-Meteo returned HTTP ${response.status}`);
+          const forecast = await response.json();
+
+          for (const [name, fields] of [
+            ["daily", ["weather_code", "temperature_2m_max", "temperature_2m_min", "precipitation_probability_max"]],
+            ["hourly", ["temperature_2m", "weather_code"]],
+          ]) {
+            const series = forecast[name];
+            assert.ok(Array.isArray(series?.time) && series.time.length > 0, `Missing ${name} timestamps`);
+            assert.ok(series.time.every((time) => typeof time === "string" && time.length > 0), `Invalid ${name} timestamps`);
+            for (const field of fields) {
+              assert.ok(Array.isArray(series[field]), `Missing ${name}.${field}`);
+              assert.equal(series[field].length, series.time.length, `Misaligned ${name}.${field}`);
+              assert.ok(series[field].some(Number.isFinite), `No numeric values in ${name}.${field}`);
+            }
+          }
+
+          console.log("Open-Meteo returned aligned daily and hourly forecasts for Miami.");
+          JS
