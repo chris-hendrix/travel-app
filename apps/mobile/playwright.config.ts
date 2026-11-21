@@ -13,8 +13,10 @@ import { ADMIN_PHONES } from "./tests/e2e/helpers/auth";
 export default defineConfig({
   testDir: "./tests/e2e",
 
-  // Maximum time one test can run
-  timeout: 60 * 1000,
+  // Metro serves a fresh development bundle on hard navigations. Long
+  // journeys make several of those, so give the dev CI run more total
+  // time while keeping each navigation and UI assertion's own deadline.
+  timeout: (process.env.CI && process.env.MOBILE_WEB_TARGET !== "export" ? 120 : 60) * 1000,
 
   // Test execution settings
   fullyParallel: true,
@@ -95,7 +97,12 @@ export default defineConfig({
             // @react-native/dev-middleware throws under NODE_ENV=test
             // ("DefaultToolLauncher must be mocked"). A dev server is a
             // development server, so pin it back explicitly.
-            env: { NODE_ENV: "development" },
+            // Bundle eagerly in Playwright so cold navigation does not
+            // compete with on-demand compilation across browser workers.
+            env: {
+              NODE_ENV: "development",
+              EXPO_NO_METRO_LAZY: "1",
+            },
           };
     return [
       {

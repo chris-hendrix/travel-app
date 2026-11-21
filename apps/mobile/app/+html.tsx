@@ -1,5 +1,5 @@
 import type { PropsWithChildren } from "react";
-import { ScrollViewStyleReset } from "expo-router/html";
+import { ScrollViewStyleReset, useServerDocumentContext } from "expo-router/html";
 
 /**
  * The root HTML shell for the web export.
@@ -15,8 +15,10 @@ import { ScrollViewStyleReset } from "expo-router/html";
  * is what makes Chrome offer Install.
  */
 export default function Root({ children }: PropsWithChildren) {
+  const { htmlAttributes, bodyAttributes, headNodes, bodyNodes } =
+    useServerDocumentContext();
   return (
-    <html lang="en">
+    <html lang="en" {...htmlAttributes}>
       <head>
         <meta charSet="utf-8" />
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
@@ -30,8 +32,12 @@ export default function Root({ children }: PropsWithChildren) {
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <ScrollViewStyleReset />
+        {headNodes}
       </head>
-      <body>{children}</body>
+      <body {...bodyAttributes}>
+        {children}
+        {bodyNodes}
+      </body>
     </html>
   );
 }

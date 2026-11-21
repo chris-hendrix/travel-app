@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ComponentRef, ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ScrollView, View } from "react-native";
 import { RuledBlock } from "@/components/ui/RuledBlock";
@@ -93,7 +93,7 @@ export function FullscreenDialog({
    * can react to it without any form having to tell it. Nothing registers
    * outside a dialog, so this is inert in the auth screens.
    */
-  const body = useRef<ScrollView | null>(null);
+  const body = useRef<ComponentRef<typeof ScrollView>>(null);
   const errors = useRef(new Set<Measurable>());
   const [hasErrors, setHasErrors] = useState(false);
 

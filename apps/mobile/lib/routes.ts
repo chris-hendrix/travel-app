@@ -4,6 +4,16 @@
  * than inline in _layout.
  */
 
+/** Routes whose trip queries need the browser session or URL parameters. */
+export function waitsForBrowserSession(pathname: string): boolean {
+  return (
+    pathname === "/demo" ||
+    pathname === "/notifications" ||
+    pathname === "/trips" ||
+    pathname.startsWith("/trips/")
+  );
+}
+
 /**
  * Fullscreen dialogs render their own title-mode header, so the global
  * wordmark bar stays off these routes. Add every new dialog route.
