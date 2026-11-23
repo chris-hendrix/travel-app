@@ -38,8 +38,6 @@
     "//overrides": "`@fastify/jwt` is pinned to 10.2.4. 10.2.5 no longer enforces token expiry under the way apps/api registers the plugin (nested `sign`/`verify` beside `secret`/`cookie`, `src/app.ts`): two integration tests that pass on 10.2.4, `should return 401 when token is expired` in GET /api/auth/me and in POST /api/auth/logout, come back 200 instead, and `pnpm audit` cannot decide that — only `pnpm --filter @journiful/api test` does. It is not the fast-jwt floor: 10.2.5 fails the same way against the 6.3.5 it asks for. It is also ignored in .github/dependabot.yml, so lifting this pin means doing both. Reached as apps/api > @fastify/jwt, and by apps/mobile in no way at all.",
     "auditConfig": {
       "ignoreGhsas": [
-        "GHSA-vfj7-8cjw-p6xm",
-        "GHSA-mrhx-c7xc-m3w5",
         "GHSA-qr28-fpjm-wq7f"
       ]
     },
